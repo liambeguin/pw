@@ -92,6 +92,7 @@ check_cfg() {
 		user=${user:-"admin"}
 		read -s -p "Web power switch password () : " psswd
 		psswd=${psswd:-""}
+		echo
 
 		echo "# This file is used by the pw command to control a web power switch" > $conf_file
 		echo "USER=\"${user}\"" >> $conf_file
