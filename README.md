@@ -7,9 +7,9 @@ to control multiple power switches.
 # Python
 ## Requirements
 This script uses :
- * requests
+ * [requests](http://docs.python-requests.org/en/latest/user/quickstart/)
  * beautifulSoup
- * docopt 
+ * [docopt](https://github.com/docopt/docopt)
 
 ## Usage
 ```
