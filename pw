@@ -63,7 +63,7 @@ class PowerSwitch:
 		self.delay = []
 
 		try:
-			requests.head(self.url, timeout=self.timeout,
+			requests.get(self.url + "/index.htm", timeout=self.timeout,
 				auth=(self.configuration['USER'], self.configuration['PASSWORD']))
 		except (requests.exceptions.ReadTimeout,
 				requests.exceptions.ConnectTimeout,
