@@ -103,6 +103,31 @@ class PowerSwitch:
 
 
 
+	def get_switch_revision(self):
+		try:
+			r = requests.get(self.url + "/support.htm", timeout=self.timeout,
+					auth=(self.configuration['USER'], self.configuration['PASSWORD']))
+		except (requests.exceptions.ReadTimeout,
+				requests.exceptions.ConnectTimeout,
+				requests.exceptions.ConnectionError) as e :
+			print " ERROR"
+			sys.exit(1)
+
+		soup = BeautifulSoup(r.text, 'html.parser')
+
+		ret = {}
+		# FIXME: This is based on the assumption that the different
+		# fields do not change order in other revisions..
+		table_lines = soup.findAll('td', width="70%")
+		ret['firmware']  = table_lines[0].string.strip()
+		ret['hardware']  = table_lines[1].string.strip()
+		ret['serialnum'] = table_lines[3].string.strip()
+
+		return ret
+
+
+
+
 	def get_switch_name(self):
 		try:
 			r = requests.get(self.url + "/index.htm", timeout=self.timeout,
@@ -267,10 +292,16 @@ class PowerSwitch:
 
 if __name__ == "__main__":
 
-	arguments = docopt(__doc__, version='0.1.1rc')
+	arguments = docopt(__doc__)
 
 	conffile=os.path.expanduser("~/." + os.path.basename(__file__) + ".conf")
 	pw = PowerSwitch(conffile)
+
+	if arguments['--version']:
+		rev = pw.get_switch_revision()
+		print "PW\t\tpy-1.0"
+		for k,v in rev.items():
+			print k.upper(), '\t', v
 
 	# first lets check if you're trying to access by name
 	# if we are, get index matching name
