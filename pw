@@ -11,7 +11,7 @@ from docopt import docopt
 __doc__ = """Usage:
 	%(name)s set OUTLET STATE
 	%(name)s get [OUTLET]
-	%(name)s tgl [OUTLET]
+	%(name)s tgl OUTLET
 	%(name)s ccl OUTLET [--delay=SEC]
 	%(name)s rename OUTLET NAME
 	%(name)s reset OUTLET
