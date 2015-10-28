@@ -22,8 +22,9 @@ The most commonly used commands are:
 	get			Get the name and state of the outlets
 	tgl			Toggle the state of an outlet
 	ccl			Power cycle a given outlet
-	rename			Rename a given outlet
 	reset			Rename an outlet to a default value
+	rename			Rename a given outlet.
+				If outlet is 'ctrl' this will rename the PowerSwitch
 
 Arguments:
 	OUTLET			outlet number (or name) to be controlled
@@ -63,7 +64,7 @@ class PowerSwitch:
 		self.delay = []
 
 		try:
-			requests.get(self.url, timeout=self.timeout,
+			requests.get(self.url + "/index.htm", timeout=self.timeout,
 				auth=(self.configuration['USER'], self.configuration['PASSWORD']))
 		except (requests.exceptions.ReadTimeout,
 				requests.exceptions.ConnectTimeout,
@@ -73,6 +74,7 @@ class PowerSwitch:
 			#XXX verbose ?
 			#print "Please check your configuration file: " + config
 
+		self.name = self.get_switch_name()
 		self.outlets = self.get_outlets_state()
 
 
@@ -97,6 +99,23 @@ class PowerSwitch:
 				options[option] = value
 		f.close()
 		return options
+
+
+
+
+	def get_switch_name(self):
+		try:
+			r = requests.get(self.url + "/index.htm", timeout=self.timeout,
+					auth=(self.configuration['USER'], self.configuration['PASSWORD']))
+		except (requests.exceptions.ReadTimeout,
+				requests.exceptions.ConnectTimeout,
+				requests.exceptions.ConnectionError) as e :
+			print " ERROR"
+			sys.exit(1)
+
+		soup = BeautifulSoup(r.text, 'html.parser')
+
+		return soup.findAll('th', bgcolor="#DDDDFF")[0].string.strip()
 
 
 
@@ -140,6 +159,7 @@ class PowerSwitch:
 	def print_outlet_state(self, outlet=None):
 
 		self.get_outlets_state()
+		print self.name
 		if outlet is None:
 			for outlet in self.outlets:
 				name= "  " + outlet['name'] + " "
@@ -185,16 +205,20 @@ class PowerSwitch:
 
 
 
-	def set_outlet_name(self, outlet, name):
+	def set_name(self, outlet, name):
 
-		self._check_outlet(outlet)
+		if outlet == 'ctrl':
+			payload = { 'ctrlname': name}
 
-		for out in self.outlets:
-			if name == out['name']:
-				print " ERROR: name already used by outlet " + out['index']
-				sys.exit(1)
+		else:
+			self._check_outlet(outlet)
 
-		payload = { 'outname'+str(outlet): name}
+			for out in self.outlets:
+				if name == out['name']:
+					print " ERROR: name already used by outlet " + out['index']
+					sys.exit(1)
+
+			payload = { 'outname'+str(outlet): name}
 
 		try:
 			r = requests.get(self.url + "/unitnames.cgi?data", timeout=self.timeout, params=payload,
@@ -277,7 +301,7 @@ if __name__ == "__main__":
 		pw.set_outlet_state(outlet, arguments['STATE'])
 
 	if arguments['rename']:
-		pw.set_outlet_name(outlet, arguments['NAME'])
+		pw.set_name(outlet, arguments['NAME'])
 
 	if arguments['reset']:
 		pw.reset_outlet_name(outlet)
