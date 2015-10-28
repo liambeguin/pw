@@ -1,10 +1,48 @@
 # pw
-*pw* is a simple bash script used to control a 
+*pw* is a simple script used to control a 
 [Digital Logger Ethernet Power Switch](http://www.digital-loggers.com/lpc.html "website"). 
 It uses a configuration file stored in the user's home directory and allows the user 
 to control multiple power switches. 
 
-# Usage 
+# Python
+## Requirements
+This script uses :
+ * [requests](http://docs.python-requests.org/en/latest/user/quickstart/)
+ * beautifulSoup
+ * [docopt](https://github.com/docopt/docopt)
+
+## Usage
+```
+Usage:
+        pw set OUTLET STATE
+        pw get [OUTLET]
+        pw tgl [OUTLET]
+        pw ccl OUTLET [--delay=SEC]
+        pw rename OUTLET NAME
+        pw reset OUTLET
+        pw -h | --help | --version
+
+The most commonly used commands are:
+        set                     Set the outlet to a given state
+        get                     Get the name and state of the outlets
+        tgl                     Toggle the state of an outlet
+        ccl                     Power cycle a given outlet
+        rename                  Rename a given outlet
+        reset                   Rename an outlet to a default value
+
+Arguments:
+        OUTLET                  outlet number (or name) to be controlled
+        STATE                   can be on, off, ccl
+
+Options:
+        --version               show version and exit
+        -h, --help              show this help message and exit
+        -v, --verbose           print status messages
+        --delay                 set number of seconds when power cycling
+```
+
+# bash
+## Usage 
 
 ```
 USAGE
