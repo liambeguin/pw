@@ -188,6 +188,12 @@ class PowerSwitch:
 	def set_outlet_name(self, outlet, name):
 
 		self._check_outlet(outlet)
+
+		for out in self.outlets:
+			if name == out['name']:
+				print " ERROR: name already used by outlet " + out['index']
+				sys.exit(1)
+
 		payload = { 'outname'+str(outlet): name}
 
 		try:
