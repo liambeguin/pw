@@ -240,8 +240,7 @@ class PowerSwitch:
 
 
 	def get_delay_settings(self):
-		r = requests.get(self.url + "/admin.htm", timeout=self.timeout,
-				auth=(self.configuration['USER'], self.configuration['PASSWORD']))
+		r = self._get_pw(self.url + "/admin.htm", None)
 		soup = BeautifulSoup(r.text, 'html.parser')
 
 		for i in range(9, 13):
