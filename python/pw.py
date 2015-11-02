@@ -60,10 +60,10 @@ class PowerSwitch:
 			f.close()
 
 		# self.configuration contains all what is defiled in the config file
-		self.configuration = self.parse_config(config)
+		self.configuration = self._parse_config(config)
 		self.url = "http://" + str(self.configuration['POWER_SWITCH_IP'])
 		self.timeout = (1, 3)
-		# self.delay contains delay settings for each outlet
+		# self.delay contains delay settings
 		self.delay = []
 
 		self._get_pw(self.url + "/index.htm", None)
@@ -97,7 +97,7 @@ class PowerSwitch:
 
 
 
-	def parse_config(self, filename):
+	def _parse_config(self, filename):
 		options = {}
 		f = open(filename)
 		for line in f:
@@ -309,7 +309,8 @@ if __name__ == "__main__":
 			pw.reset_outlet_name(outlet)
 
 	except PowerSwitchException as e:
-		print "FOO ", e
+		dir(e)
+		print e
 
 
 
