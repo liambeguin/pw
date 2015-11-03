@@ -309,9 +309,7 @@ if __name__ == "__main__":
 			pw.reset_outlet_name(outlet)
 
 	except PowerSwitchException as e:
-		dir(e)
 		print e
-
 
 
 # vim: set ft=python cc=80:
