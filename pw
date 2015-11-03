@@ -8,40 +8,10 @@ from bs4 import BeautifulSoup
 from docopt import docopt
 
 
-__doc__ = """Usage:
-	%(name)s set OUTLET STATE
-	%(name)s get [OUTLET]
-	%(name)s tgl OUTLET
-	%(name)s ccl OUTLET [--delay=SEC]
-	%(name)s rename OUTLET NAME
-	%(name)s reset OUTLET
-	%(name)s -h | --help | --version
-
-The most commonly used commands are:
-	set			Set the outlet to a given state
-	get			Get the name and state of the outlets
-	tgl			Toggle the state of an outlet
-	ccl			Power cycle a given outlet
-	reset			Rename an outlet to a default value
-	rename			Rename a given outlet.
-				If outlet is 'ctrl' this will rename the PowerSwitch
-
-Arguments:
-	OUTLET			outlet number (or name) to be controlled
-	STATE			can be on, off, ccl
-
-Options:
-	--version		show version and exit
-	-h, --help		show this help message and exit
-	-v, --verbose		print status messages
-	--delay			set number of seconds when power cycling
-
-
-""" % {'name': os.path.basename(__file__)}
 
 
 class PowerSwitchException(Exception):
-	pass
+	"""Exception raised when a connection error occurs"""
 
 class PowerSwitch:
 	def __init__(self, config):
@@ -259,7 +229,39 @@ class PowerSwitch:
 
 
 
-if __name__ == "__main__":
+def main():
+	"""Interract with the PowerSwitch via CLI"""
+
+	__doc__ = """Usage:
+	%(name)s set OUTLET STATE
+	%(name)s get [OUTLET]
+	%(name)s tgl OUTLET
+	%(name)s ccl OUTLET [--delay=SEC]
+	%(name)s rename OUTLET NAME
+	%(name)s reset OUTLET
+	%(name)s -h | --help | --version
+
+The most commonly used commands are:
+	set			Set the outlet to a given state
+	get			Get the name and state of the outlets
+	tgl			Toggle the state of an outlet
+	ccl			Power cycle a given outlet
+	reset			Rename an outlet to a default value
+	rename			Rename a given outlet.
+				If outlet is 'ctrl' this will rename the PowerSwitch
+
+Arguments:
+	OUTLET			outlet number (or name) to be controlled
+	STATE			can be on, off, ccl
+
+Options:
+	--version		show version and exit
+	-h, --help		show this help message and exit
+	-v, --verbose		print status messages
+	--delay			set number of seconds when power cycling
+
+
+""" % {'name': os.path.basename(__file__)}
 
 	arguments = docopt(__doc__)
 
@@ -311,5 +313,10 @@ if __name__ == "__main__":
 		print "FOO ", e
 
 
+
+
+
+if __name__ == "__main__":
+	main()
 
 # vim: set ft=python cc=80:
