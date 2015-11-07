@@ -5,6 +5,9 @@ import os
 import sys
 import time
 import logging
+# this is not very pretty but meh..
+logging.basicConfig(format='%(levelname)s: %(message)s')
+logger = logging.getLogger(__name__)
 
 import requests
 from bs4 import BeautifulSoup
@@ -34,6 +37,8 @@ class PowerSwitch:
 				break
 			else:
 				config = expected_path[0]
+
+		logger.debug("configuration file is %s", config)
 
 
 		if not os.path.exists(config):
@@ -259,32 +264,32 @@ def main():
 	"""Interract with the PowerSwitch via CLI"""
 
 	__doc__ = """Usage:
-	%(name)s set OUTLET STATE
-	%(name)s get [OUTLET]
-	%(name)s tgl OUTLET
-	%(name)s ccl OUTLET [--delay=SEC]
-	%(name)s rename OUTLET NAME
-	%(name)s reset OUTLET
+	%(name)s [options] set OUTLET STATE
+	%(name)s [options] get [OUTLET]
+	%(name)s [options] tgl OUTLET
+	%(name)s [options] ccl OUTLET [--delay=SEC]
+	%(name)s [options] rename OUTLET NAME
+	%(name)s [options] reset OUTLET
 	%(name)s -h | --help | --version
 
 The most commonly used commands are:
-	set			Set the outlet to a given state
-	get			Get the name and state of the outlets
-	tgl			Toggle the state of an outlet
-	ccl			Power cycle a given outlet
-	reset			Rename an outlet to a default value
-	rename			Rename a given outlet.
-				If outlet is 'ctrl' this will rename the PowerSwitch
+ set ...... Set the outlet to a given state
+ get ...... Get the name and state of the outlets
+ tgl ...... Toggle the state of an outlet
+ ccl ...... Power cycle a given outlet
+ reset .... Rename an outlet to a default value
+ rename ... Rename a given outlet.
+            If outlet is 'ctrl' this will rename the PowerSwitch
 
 Arguments:
-	OUTLET			outlet number (or name) to be controlled
-	STATE			can be on, off, ccl
+ OUTLET	..... outlet number (or name) to be controlled
+ STATE ...... can be on, off, ccl
 
 Options:
-	--version		Show version and exit
-	-h, --help		Show this help message and exit
-	-v, --verbose		Print status messages
-	--delay			Set number of seconds when power cycling
+ --version      Show version and exit
+ -h, --help     Show this help message and exit
+ -v, --verbose  Print status messages
+ --delay SEC    Set number of seconds when power cycling
 
 
 """ % {'name': os.path.basename(__file__)}
@@ -292,6 +297,12 @@ Options:
 	arguments = docopt(__doc__)
 
 	conffile=os.path.basename(__file__) + ".conf"
+
+	if arguments['--verbose']:
+		logger.setLevel(logging.DEBUG)
+	else:
+		logger.setLevel(logging.INFO)
+
 	try:
 		pw = PowerSwitch(conffile)
 
