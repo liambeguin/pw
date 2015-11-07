@@ -21,13 +21,15 @@ class PowerSwitchException(Exception):
 
 class PowerSwitch:
 	def __init__(self, conffile):
+		"""Initialize the PowerSwitch instance by setting it's configuration
+		file, url, timeouts and outlets"""
 
-		"""
-		Expected_path is a list of paths where pw should look to find a config
-		file. the first element is the most important. If none of them exists,
-		a file will be created in expected_path[0].
-		NOTE: expected_path[0] must be writable by the user...
-		"""
+		# NOTE: Expected_path is a list of paths where pw should look
+		#       to find a config file.
+		#       the first element has priority and overrides the others.
+		#       If none of them exists, a file will be created in expected_path[0].
+		#       expected_path[0] must be writable by the user...
+
 		#expected_path = ['/etc/pw/', '~/.']
 		expected_path = ['~/.', '/etc/pw/']
 		expected_path = [os.path.expanduser(path + conffile) for path in expected_path]
@@ -37,9 +39,6 @@ class PowerSwitch:
 				break
 			else:
 				config = expected_path[0]
-
-		logger.debug("configuration file is %s", config)
-
 
 		if not os.path.exists(config):
 			# so lets create the file
@@ -56,10 +55,15 @@ class PowerSwitch:
 			f.close()
 
 		# self.configuration contains all what is defiled in the config file
+		logger.debug("configuration file is %s", config)
 		self.configuration = self._parse_config(config)
+
 		self.url = "http://" + str(self.configuration['POWER_SWITCH_IP'])
+		logger.debug("power switch url is " + self.url)
+
 		self.timeout = (1, 3)
-		# self.delay contains delay settings
+		logger.debug("power switch timouts are " + str(self.timeout))
+
 		self.delay = []
 
 		self._get_pw(self.url + "/index.htm", None)
@@ -89,8 +93,7 @@ class PowerSwitch:
 
 	def _check_outlet(self, outlet):
 		if str(outlet) not in "all 1 2 3 4 5 6 7 8":
-			print " ERROR: Asking for an outlet out of range !"
-			sys.exit(1)
+			raise PowerSwitchException("Asking for an outlet out of range !")
 
 
 
@@ -121,6 +124,8 @@ class PowerSwitch:
 
 
 	def get_switch_revision(self):
+		"""Returns a dictionary of 3 revision numbers"""
+
 		r = self._get_pw(self.url + "/support.htm", None)
 
 		soup = BeautifulSoup(r.text, 'html.parser')
@@ -139,6 +144,8 @@ class PowerSwitch:
 
 
 	def get_switch_name(self):
+		"""Returns the PowerSwitch name"""
+
 		r = self._get_pw(self.url + "/index.htm", None)
 		soup = BeautifulSoup(r.text, 'html.parser')
 
@@ -148,6 +155,8 @@ class PowerSwitch:
 
 
 	def get_outlets_state(self):
+		"""Returns a list of dictionaries containing each outlet's state"""
+
 		r = self._get_pw(self.url + "/index.htm", None)
 		soup = BeautifulSoup(r.text, 'html.parser')
 
@@ -167,6 +176,7 @@ class PowerSwitch:
 
 
 	def print_outlet_state(self, outlet=None):
+		"""Prints outlet states"""
 
 		self.get_outlets_state()
 		print self.name
@@ -185,13 +195,13 @@ class PowerSwitch:
 
 
 	def set_outlet_state(self, outlet, state):
+		"""Set a specific outlet to a given state (ON, OFF, CCL)"""
 
 		self._check_outlet(outlet)
 		if state in "on off ccl":
 			payload = { outlet: state.upper()}
 		else:
-			print " ERROR: \"" + state + "\" is not a valid state."
-			sys.exit(1)
+			raise PowerSwitchException("\"" + state + "\" is not a valid state.")
 
 		self._get_pw(self.url + "/outlet", payload)
 
@@ -199,6 +209,7 @@ class PowerSwitch:
 
 
 	def toggle_outlet(self, outlet):
+		"""Toggle a specific outlet's state"""
 
 		self._check_outlet(outlet)
 		if self.outlets[int(outlet)-1]['state'] == "OFF":
@@ -209,16 +220,15 @@ class PowerSwitch:
 
 
 	def set_name(self, outlet, name):
+		"""Sets the controller or a given outlet's name"""
 
 		if outlet == 'ctrl':
 			payload = { 'ctrlname': name}
 		else:
 			self._check_outlet(outlet)
-
 			for out in self.outlets:
 				if name == out['name']:
-					print " ERROR: name already used by outlet " + out['index']
-					sys.exit(1)
+					raise PowerSwitchException("This name is already used by outlet " + out['index'])
 
 			payload = { 'outname'+str(outlet): name}
 
@@ -228,6 +238,7 @@ class PowerSwitch:
 
 
 	def reset_outlet_name(self, outlet=None):
+		"""Sets a given outlet's name to "Outlet i" where i is it's index"""
 
 		if outlet is None:
 			for i in self.outlets:
@@ -239,6 +250,10 @@ class PowerSwitch:
 
 
 	def get_delay_settings(self):
+		"""Returns a dictionary of delay settings.
+		check "delay" section on your switch's
+		admin page for more information."""
+
 		r = self._get_pw(self.url + "/admin.htm", None)
 		soup = BeautifulSoup(r.text, 'html.parser')
 
@@ -346,6 +361,8 @@ Options:
 		if arguments['reset']:
 			pw.reset_outlet_name(outlet)
 
+	except KeyboardInterrupt:
+		logger.warning("Interrupted by user.")
 	except PowerSwitchException as e:
 		print e
 
