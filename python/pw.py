@@ -1,8 +1,11 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import os
 import sys
 import time
+import logging
+
 import requests
 from bs4 import BeautifulSoup
 from docopt import docopt
@@ -14,9 +17,27 @@ class PowerSwitchException(Exception):
 	"""Exception raised when a connection error occurs"""
 
 class PowerSwitch:
-	def __init__(self, config):
+	def __init__(self, conffile):
+
+		"""
+		Expected_path is a list of paths where pw should look to find a config
+		file. the first element is the most important. If none of them exists,
+		a file will be created in expected_path[0].
+		NOTE: expected_path[0] must be writable by the user...
+		"""
+		#expected_path = ['/etc/pw/', '~/.']
+		expected_path = ['~/.', '/etc/pw/']
+		expected_path = [os.path.expanduser(path + conffile) for path in expected_path]
+		for path in expected_path:
+			if os.path.exists(path):
+				config = path
+				break
+			else:
+				config = expected_path[0]
+
+
 		if not os.path.exists(config):
-			#so lets create the file
+			# so lets create the file
 			print "Generating configuration file..."
 			ip     = raw_input("IP address [192.168.0.100] : ") or "192.168.0.100"
 			user   = raw_input("username [admin] : ") or "admin"
@@ -45,6 +66,8 @@ class PowerSwitch:
 
 
 	def _get_pw(self, page, payload):
+		"""Send a request to the PowerSwitch"""
+
 		try:
 			ret = requests.get(page, timeout=self.timeout, params=payload,
 					auth=(self.configuration['USER'], self.configuration['PASSWORD']))
@@ -68,6 +91,8 @@ class PowerSwitch:
 
 
 	def _parse_config(self, filename):
+		"""Parse the configuration file"""
+
 		options = {}
 		f = open(filename)
 		for line in f:
@@ -182,7 +207,6 @@ class PowerSwitch:
 
 		if outlet == 'ctrl':
 			payload = { 'ctrlname': name}
-
 		else:
 			self._check_outlet(outlet)
 
@@ -216,7 +240,8 @@ class PowerSwitch:
 		for i in range(9, 13):
 			tmp = soup.findAll('tr', bgcolor="#F4F4F4")[i]
 			delay = {}
-			delay[tmp.findAll('td')[0].string.replace(' ', '_')] = tmp.findAll('td')[1].find('input').get('value')
+			delay[tmp.findAll('td')[0].string.replace(' ', '_')] = \
+					tmp.findAll('td')[1].find('input').get('value')
 			self.delay.append(delay)
 
 
@@ -256,17 +281,17 @@ Arguments:
 	STATE			can be on, off, ccl
 
 Options:
-	--version		show version and exit
-	-h, --help		show this help message and exit
-	-v, --verbose		print status messages
-	--delay			set number of seconds when power cycling
+	--version		Show version and exit
+	-h, --help		Show this help message and exit
+	-v, --verbose		Print status messages
+	--delay			Set number of seconds when power cycling
 
 
 """ % {'name': os.path.basename(__file__)}
 
 	arguments = docopt(__doc__)
 
-	conffile=os.path.expanduser("~/." + os.path.basename(__file__) + ".conf")
+	conffile=os.path.basename(__file__) + ".conf"
 	try:
 		pw = PowerSwitch(conffile)
 
