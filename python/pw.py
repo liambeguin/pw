@@ -61,12 +61,13 @@ class PowerSwitch:
 		self.url = "http://" + str(self.configuration['POWER_SWITCH_IP'])
 		logger.debug("power switch url is " + self.url)
 
-		self.timeout = (1, 3)
+		self.timeout = (0.25, 1)
 		logger.debug("power switch timouts are " + str(self.timeout))
 
 		self.delay = []
 
-		self._get_pw(self.url + "/index.htm", None)
+		self._request_count = 0
+		self._max_request_count = 5
 
 		self.name = self.get_switch_name()
 		self.outlets = self.get_outlets_state()
@@ -77,15 +78,23 @@ class PowerSwitch:
 	def _get_pw(self, page, payload):
 		"""Send a request to the PowerSwitch"""
 
+		logger.debug("try : " + str(self._request_count +1))
+
 		try:
 			ret = requests.get(page, timeout=self.timeout, params=payload,
 					auth=(self.configuration['USER'], self.configuration['PASSWORD']))
 		except (requests.exceptions.ReadTimeout,
-				requests.exceptions.ConnectTimeout) as e :
-			raise PowerSwitchException(" ERROR: Connection timed out")
-		except requests.exceptions.ConnectionError as e :
-			raise PowerSwitchException(" ERROR: could not reach the PowerSwitch ")
+				requests.exceptions.ConnectTimeout,
+				requests.exceptions.ConnectionError) as e :
 
+			if (self._request_count <= self._max_request_count):
+				self._request_count += 1
+				ret = self._get_pw(page, payload)
+			else :
+				self._request_count = 0
+				raise PowerSwitchException(" ERROR: Connection failed")
+
+		self._request_count = 0
 		return ret
 
 
@@ -323,7 +332,7 @@ Options:
 
 		if arguments['--version']:
 			rev = pw.get_switch_revision()
-			print "PW\t\tpy-1.0"
+			print "PW\t\tpy-1.1"
 			for k,v in rev.items():
 				print k.upper(), '\t', v
 
