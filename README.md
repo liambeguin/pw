@@ -12,6 +12,19 @@ This script uses :
  * beautifulSoup
  * [docopt](https://github.com/docopt/docopt)
 
+## Configuration files
+`pw` uses a configuration file to access the power switch's web interface. 
+If a symlink of `pw` is made, the tool will use another conf file.
+
+Example: 
+```
+$ ln -s ~/dev/pw/python/pw.py ~/bin/pw
+$ ln -s ~/bin/pw ~/bin/p1
+# You can now use the tool on two different switches. 
+# One will use ~/.pw.conf and the other ~/.p1.conf.
+```
+`pw` first looks for it's configuration in your home directory (user specific) then in `/etc/pw` (system wide). If no file is found, you'll be asked to fill the config and it'll be stored in your home directory. 
+
 ## Usage
 ```
 Usage:
