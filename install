@@ -1,0 +1,5 @@
+#!/bin/sh
+
+sudo dnf install -y python-beautifulsoup4 python-requests python-docopt
+unlink ~/bin/pw
+ln -sf $(pwd)/python/pw.py ~/bin/pw
