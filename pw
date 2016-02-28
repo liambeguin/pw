@@ -98,6 +98,7 @@ check_cfg() {
 		echo "USER=\"${user}\"" >> $conf_file
 		echo "PASSWORD=\"${psswd}\"" >> $conf_file
 		echo "POWER_SWITCH_IP=\"${ip}\"" >> $conf_file
+		chmod 0600 $conf_file
 	else
 		verbose "Configuration file is : $conf_file"
 	fi
