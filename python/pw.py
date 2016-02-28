@@ -53,6 +53,7 @@ class PowerSwitch:
 			f.write("PASSWORD=\"" + passwd + "\"\n")
 			f.write("POWER_SWITCH_IP=\"" + ip + "\"\n")
 			f.close()
+			os.chmod(config, 0600)
 
 		# self.configuration contains all what is defiled in the config file
 		logger.debug("configuration file is %s", config)
