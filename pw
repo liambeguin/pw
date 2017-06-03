@@ -14,7 +14,27 @@ class PowerSwitchException(Exception):
 	"""Exception raised when a connection error occurs"""
 
 class PowerSwitch:
-	def __init__(self, config):
+	def __init__(self, conffile):
+		"""Initialize the PowerSwitch instance by setting it's configuration
+		file, url, timeouts and outlets"""
+
+		# NOTE: Expected_path is a list of paths where pw should look
+		#       to find a config file.
+		#       the first element has priority and overrides the others.
+		#       If none of them exists, a file will be created in expected_path[0].
+		#       expected_path[0] must be writable by the user...
+
+		#expected_path = ['/etc/pw/', '~/.']
+		expected_path = ['~/.', '/etc/pw/']
+		expected_path = [os.path.expanduser(path + conffile) for path in expected_path]
+		for path in expected_path:
+			if os.path.exists(path):
+				config = path
+				break
+			else:
+				config = expected_path[0]
+
+
 		if not os.path.exists(config):
 			#so lets create the file
 			print "Generating configuration file..."
@@ -265,7 +285,7 @@ Options:
 
 	arguments = docopt(__doc__)
 
-	conffile=os.path.expanduser("~/." + os.path.basename(__file__) + ".conf")
+	conffile=os.path.basename(__file__) + ".conf"
 	try:
 		pw = PowerSwitch(conffile)
 
