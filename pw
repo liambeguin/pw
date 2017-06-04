@@ -242,6 +242,20 @@ class PowerSwitch:
             self.delay.append(delay)
 
 
+def version():
+    """Extract revision from Git history"""
+    import subprocess
+
+    describe = 'git describe --abbrev=8 --always --dirty'.split()
+
+    try:
+        version = subprocess.check_output(describe, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError:
+        version = "%%VERSION%%"
+
+    return version.strip()
+
+
 def main():
     """Interract with the PowerSwitch via CLI"""
 
@@ -291,9 +305,9 @@ Options:
 
         if arguments['--version']:
             rev = pw.get_switch_revision()
-            print "PW\t\tpy-1.1"
+            print("{} version {}\n".format(filename, version()))
             for k, v in rev.items():
-                print k.upper(), '\t', v
+                print("{:10}\t{}".format(k, v))
 
         # first lets check if you're trying to access by name
         # if we are, get index matching name
