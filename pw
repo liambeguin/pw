@@ -3,6 +3,8 @@
 import os
 import sys
 import time
+import logging
+
 import requests
 from bs4 import BeautifulSoup
 from docopt import docopt
@@ -14,9 +16,13 @@ class PowerSwitchException(Exception):
 	"""Exception raised when a connection error occurs"""
 
 class PowerSwitch:
-	def __init__(self, conffile):
+	def __init__(self, conffile, loglevel):
 		"""Initialize the PowerSwitch instance by setting it's configuration
 		file, url, timeouts and outlets"""
+
+                logging.basicConfig(format='%(levelname)s: %(message)s')
+                self.logger = logging.getLogger(__name__)
+                self.logger.setLevel(loglevel)
 
 		# NOTE: Expected_path is a list of paths where pw should look
 		#       to find a config file.
@@ -51,10 +57,14 @@ class PowerSwitch:
 			os.chmod(config, 0600)
 
 		# self.configuration contains all what is defiled in the config file
+		self.logger.debug("configuration file is %s", config)
 		self.configuration = self.parse_config(config)
 		self.url = "http://" + str(self.configuration['POWER_SWITCH_IP'])
-		self.timeout = 0.2
-		# self.delay contains delay settings
+		self.logger.debug("power switch url is " + self.url)
+
+		self.timeout = (0.25, 1)
+		self.logger.debug("power switch timouts are " + str(self.timeout))
+
 		self.delay = []
 
 		self._request_count = 0
@@ -68,7 +78,7 @@ class PowerSwitch:
 
 	def _get_pw(self, page, payload):
 
-		logger.debug("try : " + str(self._request_count +1))
+		self.logger.debug("try : " + str(self._request_count +1))
 
 		try:
 			ret = requests.get(page, timeout=self.timeout, params=payload,
@@ -297,8 +307,13 @@ Options:
 	arguments = docopt(__doc__)
 
 	conffile=os.path.basename(__file__) + ".conf"
+        lvl = logging.INFO
+
+	if arguments['--verbose']:
+		lvl= logging.DEBUG
+
 	try:
-		pw = PowerSwitch(conffile)
+		pw = PowerSwitch(conffile, lvl)
 
 		if arguments['--version']:
 			rev = pw.get_switch_revision()
@@ -340,6 +355,8 @@ Options:
 		if arguments['reset']:
 			pw.reset_outlet_name(outlet)
 
+	except KeyboardInterrupt:
+		pw.logger.warning("Interrupted by user.")
 	except PowerSwitchException as e:
 		print "FOO ", e
 
