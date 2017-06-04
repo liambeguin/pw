@@ -24,40 +24,10 @@ class PowerSwitch:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(loglevel)
 
-        # NOTE: expected_path is a list of paths where pw should look to find a
-        #       configuration file.
-        #       The first element has priority and overrides the others.
-        #       If none of them exists, a file will be created in
-        #       expected_path[0]. That path must be writable by the user!
-        expected_path = ['~/.', '/etc/pw/']
-        expected_path = [path + conffile for path in expected_path]
+        # self.configuration contains all what is defined in the config file
+        self.conffile = self.config_get_or_create(conffile)
+        self.configuration = self.config_parse()
 
-        expected_path = [os.path.expanduser(path) for path in expected_path]
-        for path in expected_path:
-            if os.path.exists(path):
-                config = path
-                break
-            else:
-                config = expected_path[0]
-
-        if not os.path.exists(config):
-            # so lets create the file
-            print "Generating configuration file..."
-            ip = raw_input("IP address [192.168.0.100] : ") or "192.168.0.100"
-            user = raw_input("username [admin] : ") or "admin"
-            passwd = raw_input("password [] : ") or ""
-
-            f = open(config, 'w')
-            f.write("# more information on at: github.com/liambeguin/pw\n")
-            f.write("USER=\"" + user + "\"\n")
-            f.write("PASSWORD=\"" + passwd + "\"\n")
-            f.write("POWER_SWITCH_IP=\"" + ip + "\"\n")
-            f.close()
-            os.chmod(config, 0600)
-
-        # self.configuration contains all what is defiled in the config file
-        self.logger.debug("configuration file is %s", config)
-        self.configuration = self.parse_config(config)
         self.url = "http://" + str(self.configuration['POWER_SWITCH_IP'])
         self.logger.debug("power switch url is " + self.url)
 
@@ -94,11 +64,46 @@ class PowerSwitch:
         self._request_count = 0
         return ret
 
-    def parse_config(self, filename):
+    def config_get_or_create(self, conffile):
+        # NOTE: expected_path is a list of paths where pw should look to find a
+        #       configuration file.
+        #       The first element has priority and overrides the others.
+        #       If none of them exists, a file will be created in
+        #       expected_path[0]. That path must be writable by the user!
+
+        expected_path = ['~/.', '/etc/pw/']
+        expected_path = [path + conffile for path in expected_path]
+        expected_path = [os.path.expanduser(path) for path in expected_path]
+
+        config = expected_path[0]
+
+        for path in expected_path:
+            if os.path.exists(path):
+                config = path
+                break
+
+        self.logger.debug("configuration file is %s", config)
+        if not os.path.exists(config):
+            print "Generating configuration file..."
+            ip = raw_input("IP address [192.168.0.100] : ") or "192.168.0.100"
+            user = raw_input("username [admin] : ") or "admin"
+            passwd = raw_input("password [] : ") or ""
+
+            f = open(config, 'w')
+            f.write("# more information on at: github.com/liambeguin/pw\n")
+            f.write("USER=\"" + user + "\"\n")
+            f.write("PASSWORD=\"" + passwd + "\"\n")
+            f.write("POWER_SWITCH_IP=\"" + ip + "\"\n")
+            f.close()
+            os.chmod(config, 0600)
+
+        return config
+
+    def config_parse(self):
         """Parse the configuration file"""
 
         options = {}
-        f = open(filename)
+        f = open(self.conffile)
         for line in f:
             # First, remove comments:
             if '#' in line:
