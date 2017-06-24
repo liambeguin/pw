@@ -23,7 +23,6 @@ idx_switch_name=""
 outlet=""
 
 PROGNAME=${0##*/}
-CONFFIILE="/home/$USER/.${PROGNAME}.conf"
 
 die()     { printf "fatal: %s\n" "$*"; exit 1; }
 verbose() { test -n "$VERBOSE" && printf "verbose: %s\n" "$*"; }
@@ -65,10 +64,16 @@ usage() {
 	exit 0
 }
 
-check_cfg() {
-	# TODO check if a system config file exists and use it
-	# /etc/pw/
-	if [ ! -r $CONFFIILE ]; then
+get_configuration() {
+	# NOTE: the last element of this list should be writable to the user.
+	#       If no file is found before the end of the for-loop, this function
+	#       will try to create a config file in that place.
+	for f in "/etc/pw/" "${HOME}/."; do
+		CONFFIILE="${f}${PROGNAME}.conf"
+		test -r "$CONFFIILE" && break
+	done
+
+	if [ ! -r "$CONFFIILE" ]; then
 		echo "Generating configuration file..."
 		read -rp "Web power switch IP [192.168.0.100]: " ip
 		ip=${ip:-"192.168.0.100"}
@@ -85,12 +90,12 @@ check_cfg() {
 		PASSWORD="${psswd}"
 		POWER_SWITCH_IP="${ip}"
 		EOF
-		chmod 0600 $CONFFIILE
+		chmod 0600 "$CONFFIILE"
 	else
 		verbose "Configuration file is : $CONFFIILE"
 	fi
 
-	source $CONFFIILE
+	source "$CONFFIILE"
 }
 
 check_url() {
@@ -215,7 +220,7 @@ while true; do
 	shift
 done
 
-check_cfg
+get_configuration
 check_url
 get_index
 
