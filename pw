@@ -146,6 +146,16 @@ set_outlet_state() {
 	exit 0
 }
 
+tgl_outlet_state() {
+	local curr="$(get_outlet_state "$1")"
+
+	if [ "$curr" == "ON" ]; then
+		set_outlet_state "$1" "off"
+	else
+		set_outlet_state "$1" "on"
+	fi
+}
+
 set_outlet_name() {
 	name="$2"
 
@@ -203,6 +213,7 @@ case "$CMD" in
 	get) get_outlet_state "$1" ;;
 	set) set_outlet_state "$1" "$2" ;;
 	ccl) set_outlet_state "$1" ccl ;;
+	tgl|toggle) tgl_outlet_state "$1" ;;
 	rename) set_outlet_name "$1" "$2" ;;
 	h|help) usage ;;
 	*) die "Unknown '$CMD' command try --help" ;;
