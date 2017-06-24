@@ -16,11 +16,18 @@
 #
 # Brief: Script used to control a digital loggers ethernet power switch.
 
-conf_file="/home/$USER/.$(basename $0).conf"
-# files sets:
-# USER
-# PASSWORD and
-# POWER_SWITCH_IP
+idx=""
+idx_outlet_names=""
+idx_outlet_states=""
+idx_switch_name=""
+outlet=""
+
+PROGNAME=${0##*/}
+CONFFIILE="/home/$USER/.${PROGNAME}.conf"
+
+die()     { printf "fatal: %s\n" "$*"; exit 1; }
+verbose() { test -n "$VERBOSE" && printf "verbose: %s\n" "$*"; }
+version() { git status >/dev/null 2>&1 && git describe; exit 0; }
 
 set_default_options() {
 	VERBOSE=""
@@ -58,107 +65,87 @@ usage() {
 	exit 0
 }
 
-exit_err() {
-	echo "ERROR: $@"
-	exit 1
-}
-
-verbose() {
-	if [ -n "$VERBOSE" ]; then
-		echo "VERBOSE: $@"
-	fi
-}
-
 check_cfg() {
-	if [ ! -r $conf_file ]; then
+	# TODO check if a system config file exists and use it
+	# /etc/pw/
+	if [ ! -r $CONFFIILE ]; then
 		echo "Generating configuration file..."
-		read -p "Web power switch IP (192.168.0.100) : " ip
+		read -rp "Web power switch IP [192.168.0.100]: " ip
 		ip=${ip:-"192.168.0.100"}
-		read -p "Web power switch username (admin) : " user
+		read -rp "Web power switch username [admin]: " user
 		user=${user:-"admin"}
-		read -s -p "Web power switch password () : " psswd
+		read -rsp "Web power switch password []: " psswd
 		psswd=${psswd:-""}
 		echo
 
-		echo "# This file is used by the pw command to control a web power switch" > $conf_file
-		echo "USER=\"${user}\"" >> $conf_file
-		echo "PASSWORD=\"${psswd}\"" >> $conf_file
-		echo "POWER_SWITCH_IP=\"${ip}\"" >> $conf_file
-		chmod 0600 $conf_file
+		cat <<- EOF >"$CONFFIILE"
+		# This file is used by the pw command
+		# goto github.com/liambeguin/pw for more information
+		USER="${user}"
+		PASSWORD="${psswd}"
+		POWER_SWITCH_IP="${ip}"
+		EOF
+		chmod 0600 $CONFFIILE
 	else
-		verbose "Configuration file is : $conf_file"
+		verbose "Configuration file is : $CONFFIILE"
 	fi
 
-	source $conf_file
+	source $CONFFIILE
 }
 
 check_url() {
-	if [ "$FORCE" != "yes" ]; then
-		verbose "Attempting to ping ..."
-		ping -c1 -W1 $POWER_SWITCH_IP 2>&1 > /dev/null
-		if [ $? != 0 ]; then
-			exit_err "cannot access remote power switch ip [$POWER_SWITCH_IP]"
-		fi
-	fi
+	URL="${USER}@${POWER_SWITCH_IP}"
+	test -z "$USER" && USER="admin"
+	test -n "$PASSWORD" && 	URL="${USER}:${PASSWORD}@${POWER_SWITCH_IP}"
+}
 
-	if [ -z "$USER" ]; then
-		verbose "No remote ID given, using default..."
-		USER="admin"
-	fi
+get_index() {
+	idx="$(curl -s ${URL}/index.htm)"
+	idx_outlet_names=$(echo  "$idx" | sed -ne 's/^<td>\(.*\)<\/td><td>$/\1/p')
+	idx_outlet_states=$(echo "$idx" | sed -ne 's/^.*>\(ON\|OFF\)<.*$/\1/p')
+}
 
-	if [ -n "$PASSWORD" ]; then
-		URL="${USER}:${PASSWORD}@${POWER_SWITCH_IP}/"
-	else
-		verbose "No password was set"
-		URL="${USER}@${POWER_SWITCH_IP}/"
-	fi
+sanitize_outlet_options() {
+	outlet=$1
+	state="${2^^}" # set to uppercase
 
-	verbose "URL is : $URL"
+	test -z "$(echo "$outlet" | grep -E '^[1-8]$|^all$')" &&
+		die "bad outlet number"
+	test -z "$(echo "$state"  | grep -Eo '^(ON|OFF|CCL)$')" &&
+		die "bad outlet state use 'on', 'off' or 'ccl'"
+
 }
 
 set_outlet_state() {
-	outlet="$(echo $1 | grep -Eo '^[1-8]|all')"
-	if [ -z "$outlet" ]; then
-		exit_err "Bad outlet number"
-	fi
-	state="$(echo $2 | tr '[:lower:]' '[:upper:]' | grep -Eo 'ON|OFF|CCL')"
-	if [ -z "$state" ]; then
-		exit_err "bad outlet state use 'on', 'off' or 'ccl'"
-	fi
+	sanitize_outlet_options "$1" "$2"
 
-	verbose "${URL}outlet?${outlet}=${state}"
-	curl -s "${URL}outlet?${outlet}=${state}" > /dev/null 2>&1
+	verbose "${URL}/outlet?${outlet}=${state}"
+	curl -s "${URL}/outlet?${outlet}=${state}" >/dev/null 2>&1
 	verbose "Outlet $outlet was set to $state"
 
 	exit 0
 }
 
 get_outlet_state() {
-	verbose "Reding url -s ${URL}index.htm"
-	echo
-	page="$(curl -s ${URL}index.htm)"
-	names=$(echo "$page" | grep -E '<td>.*</td><td>' | sed -e 's#<td>\|</td>##g')
-	states=$(echo "$page" | grep -Eo '>ON<|>OFF<' | sed 's/<\|>//g')
-	for outlet in $(seq 1 1 8); do
+	for outlet in {1..8}; do
 		echo -ne "  "
-		echo -ne "$names\n" | sed -n "${outlet}p" |\
-			sed -e :a -e 's/^.\{1,20\}$/&./;ta;s/\./ /1' | tr '\n' ' '
-		echo -ne "$outlet-"
-		echo -ne "$states\n" | sed -n "${outlet}p"
+		echo -ne "$idx_outlet_names\n" | sed -n "${outlet}p" |\
+			sed -e :a -e 's/^.\{1,25\}$/&./;ta;s/\./ /1' | tr '\n' ' '
+		echo -ne "$outlet - "
+		echo -ne "$idx_outlet_states\n" | sed -n "${outlet}p"
 	done
-	echo
 }
 
 set_outlet_name() {
-	outlet="$(echo $1 | grep -o '[1-8]')"
-	if [ -z "$outlet" ]; then
-		exit_err "Bad outlet number ..."
-	fi
 	name="$2"
-	verbose "new name is \"$name\""
-	curl -s -G "${URL}unitnames.cgi?data" --data-urlencode "outname${outlet}=${name}" > /dev/null \
-		|| exit_err "Could not rename the outlet..."
-	verbose "Renamed outlet $outlet to : $2"
+
+	sanitize_outlet_options "$1" ""
+	test -n "$(echo $outlet | grep -Eo '^all$')" &&
+		die "cannot use 'all' while renaming outlet"
+
+	curl -s -G "${URL}/unitnames.cgi?data" \
+		--data-urlencode "outname${outlet}=${name}" >/dev/null ||
+		die "could not rename the outlet"
 }
 
 set_delay() {
@@ -170,8 +157,8 @@ set_delay() {
 	echo "WARN: Also setting: lockdel=3 relatch=0 refdelay=5 refresh=on"
 
 	delay_args="lockdel=3&seqdelay=${delay}&relatch=0&refdelay=5&refresh=on"
-	curl -s "${URL}delay.cgi?${delay_args}&press=Submit" > /dev/null || \
-		exit_err "Could not set delay time ..."
+	curl -s "${URL}/delay.cgi?${delay_args}&press=Submit" >/dev/null || \
+		die "Could not set delay time ..."
 }
 
 # parse options
@@ -197,6 +184,7 @@ done
 
 check_cfg
 check_url
+get_index
 
 # Parse command and execute
 CMD="${CMD:-$1}"; shift
@@ -207,7 +195,7 @@ case "$CMD" in
 	ccl) set_outlet_state "$1" ccl ;;
 	rename) set_outlet_name "$1" "$2" ;;
 	h|help) usage ;;
-	*)      printf "%s: Unknown command try --help\n" "$CMD"; exit 1;;
+	*) die "Unknown '$CMD' command try --help" ;;
 esac
 
 exit 0
