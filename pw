@@ -39,6 +39,7 @@ set_default_options() {
 	VERBOSE=""
 	DELAY=""
 	CURL_OPTS="-s --connect-timeout 1"
+	USER_CONF=""
 }
 
 # NOTE: tabs used to indent the usage text will not be displayed on the command
@@ -73,6 +74,10 @@ usage() {
 }
 
 get_configuration() {
+	test -n "$USER_CONF" &&
+		{ test -r "$USER_CONF" || die "'$USER_CONF' file not found"; } &&
+		source $USER_CONF && return 0
+
 	# NOTE: the last element of this list should be writable to the user.
 	#       If no file is found before the end of the for-loop, this function
 	#       will try to create a config file in that place.
@@ -210,8 +215,8 @@ set_delay() {
 
 # parse options
 set_default_options
-SHORTOPTS="hvVd:"
-LONGOPTS="help,verbose,version,delay:"
+SHORTOPTS="hvVd:c:"
+LONGOPTS="help,verbose,version,delay:conffile:"
 
 ARGS=$(getopt -s bash --options $SHORTOPTS  \
     --longoptions $LONGOPTS --name "$PROGNAME" -- "$@" )
@@ -223,6 +228,7 @@ while true; do
 		-v|--verbose) VERBOSE="yes" ;;
 		-V|--version) version ;;
 		-d|--delay) DELAY=$2; shift ;;
+		-c|--conffile) USER_CONF=$2; shift ;;
 		--) shift; break ;;
 		*)  shift; break ;;
 	esac
