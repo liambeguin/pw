@@ -20,6 +20,9 @@ idx_outlet_names=""
 idx_outlet_states=""
 idx_switch_name=""
 outlet=""
+name=""
+forbidden_chars='[/]'
+forbidden_names='[1-8]|all|switch'
 
 PROGNAME=${0##*/}
 WORKDIR="/tmp/$PROGNAME.$$"
@@ -126,16 +129,25 @@ get_index() {
 }
 
 sanitize_outlet_options() {
-	outlet=$1
+	outlet="${1}"
 	state="${2^^}" # set to uppercase
+	name="${3}"
 
-	test -z "$(echo "$outlet" | grep -E '^[1-8]$|^all$')" &&
-		outlet=$(echo "$idx_outlet_names" | cat -n | sed -ne 's/     \([1-8]\)\t'$1'/\1/p')
-
-	test -z "$(echo "$outlet" | grep -E '^[1-8]$|^all$')" &&
+	# OUTLET
+	test -z "$(echo "$outlet" | grep -E "^($forbidden_names)$")" &&
+		outlet=$(echo "$idx_outlet_names" | cat -n | sed -ne 's/     \([1-8]\)\t'"$1"'/\1/p')
+	test -z "$(echo "$outlet" | grep -E "^($forbidden_names)$")" &&
 		die "bad outlet number"
+	# STATE
 	test -z "$(echo "$state"  | grep -Eo '^(ON|OFF|CCL)$')" &&
 		die "bad outlet state use 'on', 'off' or 'ccl'"
+	# NAME
+	test -z "$name" && die "bad outlet name, cannot set empty name"
+	test -n "$(echo "$name" | grep -Eo "${forbidden_chars}")" &&
+		die "bad outlet name, using forbidden character: $forbidden_chars"
+	test -n "$(echo "$name" | grep -E "^($forbidden_names)$")" &&
+		die "bad outlet name, using forbidden name: $forbidden_names"
+
 
 	return 0
 }
@@ -151,14 +163,14 @@ get_outlet_state() {
 			echo -ne "$idx_outlet_states\n" | sed -n "${outlet}p"
 		done
 	else
-		sanitize_outlet_options "$1" "off" # $2 unused
+		sanitize_outlet_options "$1" "off" "-" # $2 and $3 unused
 		echo "$idx_outlet_states" | cat -n | sed -ne 's/     '$outlet'\t\(.*\)/\1/p'
 	fi
 	return 0
 }
 
 set_outlet_state() {
-	sanitize_outlet_options "$1" "$2"
+	sanitize_outlet_options "$1" "$2" "-"
 
 	verbose "${URL}/outlet?${outlet}=${state}"
 	curl ${CURL_OPTS} "${URL}/outlet?${outlet}=${state}" >/dev/null
@@ -188,14 +200,13 @@ ccl_outlet_state() {
 }
 
 set_outlet_name() {
-	name="$2"
+	sanitize_outlet_options "$1" "off" "$2" # state unused
 
-	sanitize_outlet_options "$1" "off" # $2 unused
-	test -n "$(echo $outlet | grep -Eo '^all$')" &&
-		die "cannot use 'all' while renaming outlet"
+	local data="outname${outlet}=${name}"
+	test "$outlet" = "switch" && data="ctrlname=${name}"
 
 	curl ${CURL_OPTS} -G "${URL}/unitnames.cgi?data" \
-		--data-urlencode "outname${outlet}=${name}" >/dev/null ||
+		--data-urlencode "$data" >/dev/null ||
 		die "could not rename the outlet"
 	return 0
 }
