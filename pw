@@ -24,51 +24,34 @@ conf_file="/home/$USER/.$(basename $0).conf"
 # PASSWORD and
 # POWER_SWITCH_IP
 
+# NOTE: tabs used to indent the usage text will not be displayed on the command
+#       line. Use 4 spaces instead! (vim: `set list` can help here
 usage() {
-	if [ -n "$verbose" ]; then
-		cat << EOF
+	cat <<- EOF
+	Usage:
+	    $(basename $0) [-v] [OPTION]
 
-USAGE
-	$(basename $0) [-v] [OPTION]
+	DESCRIPTION
+	    -v | verbose .......................... Enable verbose output
+	    -h | help [-v] ........................ Display this message
+	    [names | state | -s ] ................. Get the name and state of all outlets
+	    [1-8 | all | name]  [on | off | ccl] .. Activate, Deactivate or powercycle outlets
+	    [-d | delay] sec ...................... Set time to wait when power cycling
+	    [-w | whois | state | names]  [0-8] ... Get the name of a specific outlet
+	    rename  [1-8]  name ................... Rename an outlet
+	EOF
+	test -n "$verbose" && cat <<- EOF
 
-DESCRIPTION
-	-v | verbose .......................... Enable verbose output
-	-h | help [-v] ........................ Display this message
-	[names | state | -s ] ................. Get the name and state of all outlets
-	[1-8 | all | name]  [on | off | ccl] .. Activate, Deactivate or powercycle outlets
-	[-d | delay] sec ...................... Set time to wait when power cycling
-	[-w | whois | state | names]  [0-8] ... Get the name of a specific outlet
-	rename  [1-8]  name ................... Rename an outlet
+	CONFIGURATION FILE
+	    By default, pw will use ~/.pw.conf as a configuration file.
+	    The configuration file contains three variable :
+	    * USER
+	    * PASSWORD
+	    * POWER_SWITCH_IP
 
-CONFIGURATION FILE
-	By default, pw will use ~/.pw.conf as a configuration file.
-	The configuration file contains three variable :
-	   * USER
-	   * PASSWORD
-	   * POWER_SWITCH_IP
-
-	Creating a synlink of "pw" will allow you to use the same tool but with
-	a different configuration thus allowing you to control another power swith.
-
-EOF
-	else
-		cat << EOF
-
-USAGE
-	$(basename $0) [-v] [OPTION]
-
-DESCRIPTION
-	-v | verbose .......................... Enable verbose output
-	-h | help [-v] ........................ Display this message
-	[names | state | -s ] ................. Get the name and state of all outlets
-	[1-8 | all | name]  [on | off | ccl] .. Activate, Deactivate or powercycle outlets
-	[-d | delay] sec ...................... Set time to wait when power cycling
-	[-w | whois | state | names]  [0-8] ... Get the name of a specific outlet
-	rename  [1-8]  name ................... Rename an outlet
-
-EOF
-	fi
-
+	    Creating a synlink of "pw" will allow you to use the same tool but with
+	    a different configuration thus allowing you to control another power swith.
+	EOF
 	exit 0
 }
 
