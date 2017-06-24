@@ -103,6 +103,7 @@ get_index() {
 	idx="$(curl -s ${URL}/index.htm)"
 	idx_outlet_names=$(echo  "$idx" | sed -ne 's/^<td>\(.*\)<\/td><td>$/\1/p')
 	idx_outlet_states=$(echo "$idx" | sed -ne 's/^.*>\(ON\|OFF\)<.*$/\1/p')
+	idx_switch_name="$(echo  "$idx" | sed -ne 's/^<title>.* - \(.*\)<\/title>$/\1/p')"
 }
 
 sanitize_outlet_options() {
@@ -127,6 +128,7 @@ set_outlet_state() {
 }
 
 get_outlet_state() {
+	echo "$idx_switch_name"
 	for outlet in {1..8}; do
 		echo -ne "  "
 		echo -ne "$idx_outlet_names\n" | sed -n "${outlet}p" |\
