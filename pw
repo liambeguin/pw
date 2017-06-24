@@ -50,28 +50,54 @@ set_default_options() {
 usage() {
 	cat <<- EOF
 	Usage:
-	    $(basename $0) [-v] [OPTION]
+	    ${PROGNAME} [options] set <outlet> <state>
+	    ${PROGNAME} [options] get [outlet]
+	    ${PROGNAME} [options] <tgl|toggle> <outlet>
+	    ${PROGNAME} [options] <rst|reset> <outlet>
+	    ${PROGNAME} [options] [-d SEC|--delay=SEC] <ccl|cycle> <outlet>
+	    ${PROGNAME} [options] rename <outlet> <name>
+	    ${PROGNAME} -h | --help | --version | -R
 
-	DESCRIPTION
-	    -v | verbose .......................... Enable verbose output
-	    -h | help [-v] ........................ Display this message
-	    [names | state | -s ] ................. Get the name and state of all outlets
-	    [1-8 | all | name]  [on | off | ccl] .. Activate, Deactivate or powercycle outlets
-	    [-d | delay] sec ...................... Set time to wait when power cycling
-	    [-w | whois | state | names]  [0-8] ... Get the name of a specific outlet
-	    rename  [1-8]  name ................... Rename an outlet
+	Options:
+	    -V, --version           Show version and exit
+	    -R, --revision          Show power switch versions and exit
+	    -h, --help              Show this help message and exit
+	    -v, --verbose           Print status messages
+	    -c, --conffile          Set custom configuration file
+	    -d SEC, --delay=SEC     Set number of seconds when power cycling
+
+	Commands:
+	    set                     Set <outlet> to <state>
+	    get                     Get the state of the switch or of [outlet]
+	    tgl                     Toggle state of <outlet>
+	    ccl                     Power cycle <outlet>
+	    reset                   Rename <outlet> name to the default value
+	    rename                  Rename <outlet> to <name>. If <outlet> is 'switch'
+	                            this will rename the switch.
+
+	Arguments:
+	    outlet                  outlet identifier can be number, name, or 'all'
+	    state                   can be on, off, or ccl
+	    name                    outlet name. Can be anything but '$forbidden_names'
+	                            and cannot contain $forbidden_chars
 	EOF
-	test -n "$verbose" && cat <<- EOF
 
-	CONFIGURATION FILE
-	    By default, pw will use ~/.pw.conf as a configuration file.
-	    The configuration file contains three variable :
-	    * USER
-	    * PASSWORD
-	    * POWER_SWITCH_IP
+	test -n "$VERBOSE" && cat <<- EOF
 
-	    Creating a synlink of "pw" will allow you to use the same tool but with
-	    a different configuration thus allowing you to control another power swith.
+	Configuration file:
+	    By default, 'pw' looks for /etc/pw/pw.conf and ~/.pw.conf and uses
+	    the first file found as its configuration. Since 'pw' looks for a file
+	    based on '\$0', creating a symlink allows the user to command multiple
+	    switches easily. If no file is found, 'pw' tries to create one in the
+	    user's home directory. Note that this behaviour depends on the options
+	    passed on the command line. The configuration file is a sourced by a shell
+	    script and looks something like this:
+
+	        # this is a config file
+	        USER="yourusername"
+	        PASSWORD="yourpassword"
+	        POWER_SWITCH_IP="powerswitch.com"
+
 	EOF
 	exit 0
 }
@@ -239,7 +265,8 @@ ARGS=$(getopt -s bash --options $SHORTOPTS  \
 eval set -- "$ARGS"
 while true; do
 	case $1 in
-		-h|--help)    CMD="help" ;;
+		-h) CMD="help" ;;
+		--help) CMD="help"; VERBOSE="yes" ;;
 		-v|--verbose) VERBOSE="yes" ;;
 		-V|--version) version ;;
 		-d|--delay) DELAY=$2; shift ;;
