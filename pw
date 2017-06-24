@@ -111,6 +111,9 @@ sanitize_outlet_options() {
 	state="${2^^}" # set to uppercase
 
 	test -z "$(echo "$outlet" | grep -E '^[1-8]$|^all$')" &&
+		outlet=$(echo "$idx_outlet_names" | cat -n | sed -ne 's/     \([1-8]\)\t'$1'/\1/p')
+
+	test -z "$(echo "$outlet" | grep -E '^[1-8]$|^all$')" &&
 		die "bad outlet number"
 	test -z "$(echo "$state"  | grep -Eo '^(ON|OFF|CCL)$')" &&
 		die "bad outlet state use 'on', 'off' or 'ccl'"
