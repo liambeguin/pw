@@ -16,21 +16,29 @@
 #
 # Brief: Script used to control a digital loggers ethernet power switch.
 
-idx=""
 idx_outlet_names=""
 idx_outlet_states=""
 idx_switch_name=""
 outlet=""
 
 PROGNAME=${0##*/}
+WORKDIR="/tmp/$PROGNAME.$$"
+IDX="$WORKDIR/index"
+mkdir "$WORKDIR"
 
 die()     { printf "fatal: %s\n" "$*"; exit 1; }
 verbose() { test -n "$VERBOSE" && printf "verbose: %s\n" "$*"; }
 version() { git status >/dev/null 2>&1 && git describe; exit 0; }
 
+trap cleanup SIGHUP SIGINT SIGTERM EXIT
+cleanup() {
+	rm -r "$WORKDIR"
+}
+
 set_default_options() {
 	VERBOSE=""
 	DELAY=""
+	CURL_OPTS="-s --connect-timeout 1"
 }
 
 # NOTE: tabs used to indent the usage text will not be displayed on the command
@@ -105,10 +113,11 @@ check_url() {
 }
 
 get_index() {
-	idx="$(curl -s ${URL}/index.htm)"
-	idx_outlet_names=$(echo  "$idx" | sed -ne 's/^<td>\(.*\)<\/td><td>$/\1/p')
-	idx_outlet_states=$(echo "$idx" | sed -ne 's/^.*>\(ON\|OFF\)<.*$/\1/p')
-	idx_switch_name="$(echo  "$idx" | sed -ne 's/^<title>.* - \(.*\)<\/title>$/\1/p')"
+	curl ${CURL_OPTS} ${URL}/index.htm -o "$IDX" ||
+		die "${POWER_SWITCH_IP} is unreachable"
+	idx_outlet_names=$(sed -ne 's/^<td>\(.*\)<\/td><td>$/\1/p' "$IDX")
+	idx_outlet_states=$(sed -ne 's/^.*>\(ON\|OFF\)<.*$/\1/p' "$IDX")
+	idx_switch_name="$(sed -ne 's/^<title>.* - \(.*\)<\/title>$/\1/p' "$IDX")"
 }
 
 sanitize_outlet_options() {
@@ -147,7 +156,7 @@ set_outlet_state() {
 	sanitize_outlet_options "$1" "$2"
 
 	verbose "${URL}/outlet?${outlet}=${state}"
-	curl -s "${URL}/outlet?${outlet}=${state}" >/dev/null 2>&1
+	curl ${CURL_OPTS} "${URL}/outlet?${outlet}=${state}" >/dev/null
 	verbose "Outlet $outlet was set to $state"
 	return 0
 }
@@ -180,7 +189,7 @@ set_outlet_name() {
 	test -n "$(echo $outlet | grep -Eo '^all$')" &&
 		die "cannot use 'all' while renaming outlet"
 
-	curl -s -G "${URL}/unitnames.cgi?data" \
+	curl ${CURL_OPTS} -G "${URL}/unitnames.cgi?data" \
 		--data-urlencode "outname${outlet}=${name}" >/dev/null ||
 		die "could not rename the outlet"
 	return 0
@@ -195,7 +204,7 @@ set_delay() {
 	echo "WARN: Also setting: lockdel=3 relatch=0 refdelay=5 refresh=on"
 
 	delay_args="lockdel=3&seqdelay=${delay}&relatch=0&refdelay=5&refresh=on"
-	curl -s "${URL}/delay.cgi?${delay_args}&press=Submit" >/dev/null || \
+	curl ${CURL_OPTS} "${URL}/delay.cgi?${delay_args}&press=Submit" >/dev/null ||
 		die "Could not set delay time ..."
 }
 
