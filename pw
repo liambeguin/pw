@@ -148,6 +148,10 @@ sanitize_outlet_options() {
 	test -n "$(echo "$name" | grep -E "^($forbidden_names)$")" &&
 		die "bad outlet name, using forbidden name: $forbidden_names"
 
+	if test "$name" = "-"; then
+		name="Outlet $outlet"
+		test "$outlet" = "switch" && name="Ethernet Power Controller";
+	fi
 
 	return 0
 }
@@ -258,6 +262,7 @@ case "$CMD" in
 	set) set_outlet_state "$1" "$2" ;;
 	ccl|cycle)  ccl_outlet_state "$1" ;;
 	tgl|toggle) tgl_outlet_state "$1" ;;
+	rst|reset)  set_outlet_name "$1" "-" ;;
 	rename) set_outlet_name "$1" "$2" ;;
 	h|help) usage ;;
 	*) die "Unknown '$CMD' command try --help" ;;
