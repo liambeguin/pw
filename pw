@@ -16,13 +16,16 @@
 #
 # Brief: Script used to control a digital loggers ethernet power switch.
 
-verbose=""
-force="yes"
 conf_file="/home/$USER/.$(basename $0).conf"
 # files sets:
 # USER
 # PASSWORD and
 # POWER_SWITCH_IP
+
+set_default_options() {
+	VERBOSE=""
+	DELAY=""
+}
 
 # NOTE: tabs used to indent the usage text will not be displayed on the command
 #       line. Use 4 spaces instead! (vim: `set list` can help here
@@ -61,7 +64,7 @@ exit_err() {
 }
 
 verbose() {
-	if [ -n "$verbose" ]; then
+	if [ -n "$VERBOSE" ]; then
 		echo "VERBOSE: $@"
 	fi
 }
@@ -90,7 +93,7 @@ check_cfg() {
 }
 
 check_url() {
-	if [ "$force" != "yes" ]; then
+	if [ "$FORCE" != "yes" ]; then
 		verbose "Attempting to ping ..."
 		ping -c1 -W1 $POWER_SWITCH_IP 2>&1 > /dev/null
 		if [ $? != 0 ]; then
@@ -113,7 +116,7 @@ check_url() {
 	verbose "URL is : $URL"
 }
 
-set_outlet() {
+set_outlet_state() {
 	outlet="$(echo $1 | grep -Eo '^[1-8]|all')"
 	if [ -z "$outlet" ]; then
 		exit_err "Bad outlet number"
@@ -130,7 +133,7 @@ set_outlet() {
 	exit 0
 }
 
-get_state() {
+get_outlet_state() {
 	verbose "Reding url -s ${URL}index.htm"
 	echo
 	page="$(curl -s ${URL}index.htm)"
@@ -146,7 +149,7 @@ get_state() {
 	echo
 }
 
-set_name() {
+set_outlet_name() {
 	outlet="$(echo $1 | grep -o '[1-8]')"
 	if [ -z "$outlet" ]; then
 		exit_err "Bad outlet number ..."
@@ -171,92 +174,41 @@ set_delay() {
 		exit_err "Could not set delay time ..."
 }
 
-## STARTS HERE
+# parse options
+set_default_options
+SHORTOPTS="hvVd:"
+LONGOPTS="help,verbose,version,delay:"
 
-# The following section is a bit messy but allows to have names with spaces...
-args=( "$@" )
-if [ -n "$(echo $@ | grep -Eo "verbose|-v")" ]; then
-	verbose="yes"
-	args=( "${args[@]/\-v/}" )
-	args=( "${args[@]/verbose/}" )
-	#args=( "$(echo $@ | sed -e 's/-v\|verbose//g')" )
-fi
-for i in $(seq 0 1 $# ); do
-	if [ -n "${args[$i]}" ]; then
-		args[$i]=\"${args[$i]}\"
-	fi
+ARGS=$(getopt -s bash --options $SHORTOPTS  \
+    --longoptions $LONGOPTS --name "$PROGNAME" -- "$@" )
+
+eval set -- "$ARGS"
+while true; do
+	case $1 in
+		-h|--help)    CMD="help" ;;
+		-v|--verbose) VERBOSE="yes" ;;
+		-V|--version) version ;;
+		-d|--delay) DELAY=$2; shift ;;
+		--) shift; break ;;
+		*)  shift; break ;;
+	esac
+	shift
 done
-
-eval set -- "${args[@]}"
 
 check_cfg
 check_url
 
-verbose "case is $#"
-case $# in
-	1)
-		case $1 in
-			-h|help|--help)
-				usage
-				;;
-			-s|state|names)
-				get_state
-				;;
-			*)
-				exit_err "Unknown argument, try \"$(basename $0) help\""
-				;;
-		esac
-		;;
-	2)
-		case $1 in
-			[1-8]|all)
-				set_outlet $1 $2
-				;;
-			-w|whois|state|names)
-				if [ -n "$(echo $2 | grep -o '^[1-8]')" ]; then
-					get_state | sed -n "${2}p"
-				else
-					exit_err "bad outlet number !"
-				fi
-				;;
-			-d|delay)
-				if [ "$2" -lt 3600 ] && [ "$2" -gt 1 ]; then
-					set_delay $2
-				else
-					exit_err "Bad delay value 1 < seconds < 3600"
-				fi
-				;;
-			*)
-				if [ -n "$(echo $2 | grep -iE "on|off|ccl")" ]; then
-					outlet_number="$(get_state | grep -i "$1" | grep -o '[1-8]-' | grep -o '[1-8]')"
-					if [ -n "$outlet_number" ]; then
-						set_outlet $outlet_number $2
-					else
-						exit_err "Bad outlet name: \"$1\" not found try \"$(basename $0) names\""
-					fi
-				else
-					exit_err "Unknown argument, try \"$(basename $0) help\""
-				fi
-				;;
-			esac
-			;;
-	3)
-		case $1 in
-			-r|rename)
-				if [ -n "$(echo $2 | grep -o '^[1-8]')" ]; then
-					set_name "$2" "$3"
-				else
-					exit_err "bad outlet number !"
-				fi
-				;;
-			*)
-				exit_err "Unknown argument, try \"$(basename $0) help\""
-				;;
-		esac
-		;;
-	*)
-		exit_err "Unknown argument, try \"$(basename $0) help\""
-		;;
+# Parse command and execute
+CMD="${CMD:-$1}"; shift
+
+case "$CMD" in
+	get) get_outlet_state "$1" ;;
+	set) set_outlet_state "$1" "$2" ;;
+	ccl) set_outlet_state "$1" ccl ;;
+	rename) set_outlet_name "$1" "$2" ;;
+	h|help) usage ;;
+	*)      printf "%s: Unknown command try --help\n" "$CMD"; exit 1;;
 esac
 
+exit 0
 # vim: set cc=80 tw=100:
