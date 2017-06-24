@@ -120,6 +120,22 @@ sanitize_outlet_options() {
 
 }
 
+get_outlet_state() {
+	if [ -z "$1" ]; then
+		echo "$idx_switch_name"
+		for outlet in {1..8}; do
+			echo -ne "  "
+			echo -ne "$idx_outlet_names\n" | sed -n "${outlet}p" |\
+				sed -e :a -e 's/^.\{1,25\}$/&./;ta;s/\./ /1' | tr '\n' ' '
+			echo -ne "$outlet - "
+			echo -ne "$idx_outlet_states\n" | sed -n "${outlet}p"
+		done
+	else
+		sanitize_outlet_options "$1" "off" # $2 unused
+		echo "$idx_outlet_states" | cat -n | sed -ne 's/     '$outlet'\t\(.*\)/\1/p'
+	fi
+}
+
 set_outlet_state() {
 	sanitize_outlet_options "$1" "$2"
 
@@ -130,21 +146,10 @@ set_outlet_state() {
 	exit 0
 }
 
-get_outlet_state() {
-	echo "$idx_switch_name"
-	for outlet in {1..8}; do
-		echo -ne "  "
-		echo -ne "$idx_outlet_names\n" | sed -n "${outlet}p" |\
-			sed -e :a -e 's/^.\{1,25\}$/&./;ta;s/\./ /1' | tr '\n' ' '
-		echo -ne "$outlet - "
-		echo -ne "$idx_outlet_states\n" | sed -n "${outlet}p"
-	done
-}
-
 set_outlet_name() {
 	name="$2"
 
-	sanitize_outlet_options "$1" ""
+	sanitize_outlet_options "$1" "off" # $2 unused
 	test -n "$(echo $outlet | grep -Eo '^all$')" &&
 		die "cannot use 'all' while renaming outlet"
 
