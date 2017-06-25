@@ -41,7 +41,7 @@ cleanup() {
 set_default_options() {
 	VERBOSE=""
 	DELAY=""
-	CURL_OPTS="-s --connect-timeout 1"
+	CURL_OPTS="-s --fail --connect-timeout 1"
 	USER_CONF=""
 	USER_URL=""
 }
