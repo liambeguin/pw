@@ -183,7 +183,8 @@ sanitize_outlet_options() {
 }
 
 get_outlet_state() {
-	if [ -z "$1" ]; then
+	sanitize_outlet_options "$1" "off" "-" # $2 and $3 unused
+	if test -z "$1" || test -n "$(echo "$outlet" | grep -E "^(all|switch)$")"; then
 		echo "$idx_switch_name"
 		for outlet in {1..8}; do
 			echo -ne "  "
@@ -193,7 +194,6 @@ get_outlet_state() {
 			echo -ne "$idx_outlet_states\n" | sed -n "${outlet}p"
 		done
 	else
-		sanitize_outlet_options "$1" "off" "-" # $2 and $3 unused
 		echo "$idx_outlet_states" | cat -n | sed -ne 's/     '$outlet'\t\(.*\)/\1/p'
 	fi
 	return 0
@@ -202,6 +202,7 @@ get_outlet_state() {
 set_outlet_state() {
 	sanitize_outlet_options "$1" "$2" "-"
 
+	test "$outlet" = "switch" && die "cannot set switch state"
 	verbose "${URL}/outlet?${outlet}=${state}"
 	curl ${CURL_OPTS} "${URL}/outlet?${outlet}=${state}" >/dev/null
 	verbose "Outlet $outlet was set to $state"
@@ -209,6 +210,8 @@ set_outlet_state() {
 }
 
 tgl_outlet_state() {
+	test -n "$(echo "$1" | grep -E "^(all|switch)$")" &&
+		die "cannot toggle '$1'"
 	local curr="$(get_outlet_state "$1")"
 
 	if [ "$curr" == "ON" ]; then
@@ -220,6 +223,8 @@ tgl_outlet_state() {
 }
 
 ccl_outlet_state() {
+	test -n "$(echo "$1" | grep -E "^(all|switch)$")" &&
+		die "cannot power cycle '$1'"
 	test -z "$DELAY" && set_outlet_state "$1" ccl && return 0
 
 	local curr="$(get_outlet_state "$1")"
@@ -232,6 +237,8 @@ ccl_outlet_state() {
 set_outlet_name() {
 	sanitize_outlet_options "$1" "off" "$2" # state unused
 
+	test -n "$(echo "$outlet" | grep -E "^(all)$")" &&
+		die "cannot power cycle '$1'"
 	local data="outname${outlet}=${name}"
 	test "$outlet" = "switch" && data="ctrlname=${name}"
 
