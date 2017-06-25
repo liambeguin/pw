@@ -292,7 +292,7 @@ get_index
 CMD="${CMD:-$1}"; shift
 
 case "$CMD" in
-	get) get_outlet_state "$1" ;;
+	''|get) get_outlet_state "${1:-all}" ;;
 	set) set_outlet_state "$1" "$2" ;;
 	ccl|cycle)  ccl_outlet_state "$1" ;;
 	tgl|toggle) tgl_outlet_state "$1" ;;
