@@ -43,6 +43,7 @@ set_default_options() {
 	DELAY=""
 	CURL_OPTS="-s --connect-timeout 1"
 	USER_CONF=""
+	USER_URL=""
 }
 
 # NOTE: tabs used to indent the usage text will not be displayed on the command
@@ -64,6 +65,7 @@ usage() {
 	    -h, --help              Show this help message and exit
 	    -v, --verbose           Print status messages
 	    -c, --conffile          Set custom configuration file
+	    -u URL, --url=URL       Set custom switch url. format is 'user:passwd@ip'
 	    -d SEC, --delay=SEC     Set number of seconds when power cycling
 
 	Commands:
@@ -141,6 +143,8 @@ get_configuration() {
 }
 
 check_url() {
+	test -n "$USER_URL" && URL="$USER_URL" && return 0
+
 	URL="${USER}@${POWER_SWITCH_IP}"
 	test -z "$USER" && USER="admin"
 	test -n "$PASSWORD" && 	URL="${USER}:${PASSWORD}@${POWER_SWITCH_IP}"
@@ -263,8 +267,8 @@ set_delay() {
 
 # parse options
 set_default_options
-SHORTOPTS="hvVd:c:"
-LONGOPTS="help,verbose,version,delay:conffile:"
+SHORTOPTS="hvVd:c:u:"
+LONGOPTS="help,verbose,version,delay:conffile:url:"
 
 ARGS=$(getopt -s bash --options $SHORTOPTS  \
     --longoptions $LONGOPTS --name "$PROGNAME" -- "$@" )
@@ -278,6 +282,7 @@ while true; do
 		-V|--version) version ;;
 		-d|--delay) DELAY=$2; shift ;;
 		-c|--conffile) USER_CONF=$2; shift ;;
+		-u|--url) USER_URL=$2; shift ;;
 		--) shift; break ;;
 		*)  shift; break ;;
 	esac
