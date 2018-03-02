@@ -33,9 +33,9 @@ die()     { printf "fatal: %s\n" "$*"; exit 1; }
 verbose() { test -n "$VERBOSE" && printf "verbose: %s\n" "$*"; }
 version() { git status >/dev/null 2>&1 && git describe; exit 0; }
 
-trap cleanup SIGHUP SIGINT SIGTERM EXIT
+trap cleanup SIGHUP SIGTERM EXIT
 cleanup() {
-	rm -r "$WORKDIR"
+	rm -rf "$WORKDIR"
 }
 
 set_default_options() {
