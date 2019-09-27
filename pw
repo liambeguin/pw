@@ -10,9 +10,10 @@ import logging
 import requests
 from bs4 import BeautifulSoup
 
+from dli import Configuration
 
 class PowerSwitch:
-    def __init__(self, conffile, loglevel):
+    def __init__(self, url, user='admin', password='1234', loglevel='INFO'):
         '''Initialize the PowerSwitch instance by setting it's configuration
         file, url, timeouts and outlets'''
 
@@ -20,11 +21,9 @@ class PowerSwitch:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(loglevel)
 
-        # self.configuration contains all what is defined in the config file
-        self.conffile = self.config_get_or_create(conffile)
-        self.configuration = self.config_parse()
-
-        self.url = 'http://' + str(self.configuration['POWER_SWITCH_IP'])
+        self.url = url
+        self.user = user
+        self.password = password
         self.logger.debug(f'power switch url is {self.url}')
 
         self.timeout = (0.25, 1)
@@ -45,8 +44,7 @@ class PowerSwitch:
 
         try:
             ret = requests.get(page, timeout=self.timeout, params=payload,
-                               auth=(self.configuration['USER'],
-                                     self.configuration['PASSWORD']))
+                               auth=(self.user, self.password))
         except (requests.exceptions.ReadTimeout,
                 requests.exceptions.ConnectTimeout,
                 requests.exceptions.ConnectionError):
@@ -60,62 +58,6 @@ class PowerSwitch:
         self._request_count = 0
         return ret
 
-    def config_get_or_create(self, conffile):
-        # NOTE: expected_path is a list of paths where pw should look to find a
-        #       configuration file.
-        #       The first element has priority and overrides the others.
-        #       If none of them exists, a file will be created in
-        #       expected_path[0]. That path must be writable by the user!
-
-        expected_path = ['~/.', '/etc/pw/']
-        expected_path = [path + conffile for path in expected_path]
-        expected_path = [os.path.expanduser(path) for path in expected_path]
-
-        config = expected_path[0]
-
-        for path in expected_path:
-            if os.path.exists(path):
-                config = path
-                break
-
-        self.logger.debug('configuration file is %s', config)
-        if not os.path.exists(config):
-            print('Generating configuration file...')
-            ip = raw_input('IP address [192.168.0.100] : ') or '192.168.0.100'
-            user = raw_input('username [admin] : ') or 'admin'
-            passwd = raw_input('password [] : ') or''
-
-            f = open(config, 'w')
-            f.write('# more information on at: github.com/liambeguin/pw\n')
-            f.write('USER=\"' + user + '\"\n')
-            f.write('PASSWORD=\"' + passwd + '\"\n')
-            f.write('POWER_SWITCH_IP=\"' + ip + '\"\n')
-            f.close()
-            os.chmod(config, 600)
-
-        return config
-
-    def config_parse(self):
-        '''Parse the configuration file'''
-
-        options = {}
-        f = open(self.conffile)
-        for line in f:
-            # First, remove comments:
-            if '#' in line:
-                # split on comment char, keep only the part before
-                line, comment = line.split('#', 1)
-                # Second, find lines with an option=value:
-            if '=' in line:
-                # split on option char:
-                option, value = line.split('=', 1)
-                # strip spaces quotes and newline
-                option = option.strip()
-                value = value.strip(" \"\n")
-                # store in dictionary:
-                options[option] = value
-        f.close()
-        return options
 
     def get_switch_revision(self):
         '''Returns a dictionary of 3 revision numbers'''
@@ -310,7 +252,9 @@ def version():
 if __name__ == '__main__':
     options = parse_cmdline()
 
-    pw = PowerSwitch(options.conffile, options.log.upper())
+    conf = Configuration(options.conffile)
+    pw = PowerSwitch(url=conf.url, user=conf.user, password=conf.password,
+                     loglevel=options.log.upper())
 
     if options.outlet:
         options.outlet = pw.resolve_outlet(options.outlet)
