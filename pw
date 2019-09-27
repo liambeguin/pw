@@ -41,7 +41,7 @@ class PowerSwitch:
     def _get_pw(self, page, payload):
         '''Send a request to the PowerSwitch'''
 
-        self.logger.debug('try : ' + str(self._request_count + 1))
+        self.logger.debug('try : {self._request_count + 1}')
 
         try:
             ret = requests.get(page, timeout=self.timeout, params=payload,
@@ -172,15 +172,17 @@ class PowerSwitch:
         print(self.name)
         if outlet is None:
             for outlet in self.outlets:
-                name = '  ' + outlet['name'] + ' '
-                print name.ljust(25, '.'), outlet['index'], ' - ', \
-                    outlet['state']
+                name = outlet['name']
+                idx = outlet['index']
+                state = outlet['state']
+                print(f'  {name:.<25} {idx} - {state}')
         else:
             self._check_outlet(outlet)
             outlet = self.outlets[int(outlet) - 1]
-
-            name = '  ' + outlet['name'] + ' '
-            print name.ljust(25, '.'), outlet['index'], ' - ', outlet['state']
+            name = outlet['name']
+            idx = outlet['index']
+            state = outlet['state']
+            print(f'  {name:.<25} {idx} - {state}')
 
     def set_outlet_state(self, outlet, state):
         '''Set a specific outlet to a given state (ON, OFF, CCL)'''
@@ -306,9 +308,9 @@ Options:
 
         if arguments['--version']:
             rev = pw.get_switch_revision()
-            print('{} version {}\n'.format(filename, version()))
+            print(f'{filename} version {version()}\n')
             for k, v in rev.items():
-                print('{:10}\t{}'.format(k, v))
+                print('{k:10}\t{v}')
 
         # first lets check if you're trying to access by name
         # if we are, get index matching name
