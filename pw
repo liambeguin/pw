@@ -11,10 +11,6 @@ from bs4 import BeautifulSoup
 from docopt import docopt
 
 
-class PowerSwitchException(Exception):
-    '''Exception raised when a connection error occurs'''
-
-
 class PowerSwitch:
     def __init__(self, conffile, loglevel):
         '''Initialize the PowerSwitch instance by setting it's configuration
@@ -59,7 +55,7 @@ class PowerSwitch:
                 ret = self._get_pw(page, payload)
             else:
                 self._request_count = 0
-                raise PowerSwitchException(' ERROR: Connection failed')
+                raise Exception(' ERROR: Connection failed')
 
         self._request_count = 0
         return ret
@@ -193,7 +189,7 @@ class PowerSwitch:
         if state in 'on off ccl':
             payload = {outlet: state.upper()}
         else:
-            raise PowerSwitchException(''%s' is not a valid state.' % state)
+            raise Exception('%s is not a valid state.' % state)
 
         self._get_pw(self.url + '/outlet', payload)
 
@@ -215,7 +211,7 @@ class PowerSwitch:
             self._check_outlet(outlet)
             for out in self.outlets:
                 if name == out['name']:
-                    raise PowerSwitchException('This name is already used by '
+                    raise Exception('This name is already used by '
                                                'outlet ' + out['index'])
 
             payload = {'outname'+str(outlet): name}
@@ -350,8 +346,6 @@ Options:
 
     except KeyboardInterrupt:
         pw.logger.warning('Interrupted by user.')
-    except PowerSwitchException as e:
-        print e
 
 
 if __name__ == '__main__':
