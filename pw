@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # vim: fileencoding=utf-8 cc=80 et tw=79 ts=4
 
 import os
