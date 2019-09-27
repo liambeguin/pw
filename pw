@@ -95,7 +95,7 @@ class PowerSwitch:
             f.write('PASSWORD=\"' + passwd + '\"\n')
             f.write('POWER_SWITCH_IP=\"' + ip + '\"\n')
             f.close()
-            os.chmod(config, 0600)
+            os.chmod(config, 600)
 
         return config
 
