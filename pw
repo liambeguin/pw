@@ -4,11 +4,11 @@
 import os
 import sys
 import time
+import argparse
 import logging
 
 import requests
 from bs4 import BeautifulSoup
-from docopt import docopt
 
 
 class PowerSwitch:
@@ -134,6 +134,11 @@ class PowerSwitch:
 
         return ret
 
+    def resolve_outlet(self, identifier):
+        for o in self.outlets:
+            if o['name'] == identifier or o['index'] == identifier:
+                return o['index']
+
     def get_switch_name(self):
         '''Returns the PowerSwitch name'''
 
@@ -245,6 +250,49 @@ class PowerSwitch:
             self.delay.append(delay)
 
 
+def parse_cmdline():
+    parser = argparse.ArgumentParser(description='Control a DLI PowerSwitch over commandline')
+    parser.add_argument('--conffile', default=f'{os.path.basename(__file__)}.conf',
+                        help='path to a PowerSwitch configuration file')
+    parser.add_argument('--log', default='info', help='Change default log level',
+                        choices='debug info warning error critical'.split())
+
+    subpar = parser.add_subparsers(help='Sub-Commands', dest='action')
+    parser_set = subpar.add_parser('set', help='Set the outlet to a given state')
+    parser_get = subpar.add_parser('get', help='Get the name and state of the outlets')
+    parser_tgl = subpar.add_parser('tgl', help='Toggle the state of an outlet')
+    parser_ccl = subpar.add_parser('ccl', help='Power cycle a given outlet')
+    parser_reset = subpar.add_parser('reset', help='Rename an outlet to a default value')
+    parser_rename = subpar.add_parser('rename', help='Rename a given outlet. '
+                                      'If outlet is \'ctrl\' this will rename the switch')
+    parser_version = subpar.add_parser('version', help='Display version information')
+
+    parser_set.add_argument('outlet',
+                            help='number or name of the outlet to be controlled')
+    parser_set.add_argument('state', choices='on off ccl'.split(),
+                            help='Desired state of the outlet')
+
+    parser_get.add_argument('outlet', nargs='?',
+                            help='number or name of the outlet to be controlled')
+
+    parser_tgl.add_argument('outlet',
+                            help='number or name of the outlet to be controlled')
+
+    parser_ccl.add_argument('--delay', default=None,
+                            help='Set number of seconds when power cycling')
+    parser_ccl.add_argument('outlet',
+                            help='number or name of the outlet to be controlled')
+
+    parser_reset.add_argument('outlet',
+                            help='number or name of the outlet to be controlled')
+
+    parser_rename.add_argument('outlet',
+                            help='number or name of the outlet to be controlled')
+    parser_rename.add_argument('name',
+                            help='new outlet name')
+
+    return parser.parse_args()
+
 def version():
     '''Extract revision from Git history'''
     import subprocess
@@ -256,99 +304,33 @@ def version():
     except subprocess.CalledProcessError:
         version = '%%VERSION%%'
 
-    return version.strip()
-
-
-def main():
-    '''Interract with the PowerSwitch via CLI'''
-
-    filename = os.path.basename(__file__)
-
-    __doc__ = '''Usage:
-    %(name)s [options] set OUTLET STATE
-    %(name)s [options] get [OUTLET]
-    %(name)s [options] tgl OUTLET
-    %(name)s [options] ccl OUTLET [--delay=SEC]
-    %(name)s [options] rename OUTLET NAME
-    %(name)s [options] reset OUTLET
-    %(name)s -h | --help | --version
-
-The most commonly used commands are:
-    set ............. Set the outlet to a given state
-    get ............. Get the name and state of the outlets
-    tgl ............. Toggle the state of an outlet
-    ccl ............. Power cycle a given outlet
-    reset ........... Rename an outlet to a default value
-    rename .......... Rename a given outlet.
-                      If outlet is 'ctrl' this will rename the switch
-
-Arguments:
-    OUTLET .......... outlet number (or name) to be controlled
-    STATE ........... can be on, off, ccl
-
-Options:
-    --version         Show version and exit
-    -h, --help        Show this help message and exit
-    -v, --verbose     Print status messages
-    --delay SEC       Set number of seconds when power cycling
-
-
-''' % {'name': filename}
-
-    arguments = docopt(__doc__)
-
-    conffile = filename + '.conf'
-    lvl = logging.INFO
-
-    if arguments['--verbose']:
-        lvl = logging.DEBUG
-
-    try:
-        pw = PowerSwitch(conffile, lvl)
-
-        if arguments['--version']:
-            rev = pw.get_switch_revision()
-            print(f'{filename} version {version()}\n')
-            for k, v in rev.items():
-                print('{k:10}\t{v}')
-
-        # first lets check if you're trying to access by name
-        # if we are, get index matching name
-        for out in pw.outlets:
-            if out['name'] == arguments['OUTLET']:
-                outlet = out['index']
-                break
-            else:
-                outlet = None
-        if outlet is None:
-            outlet = arguments['OUTLET']
-
-        if arguments['ccl']:
-            if arguments['--delay'] is None:
-                pw.set_outlet_state(outlet, 'ccl')
-            else:
-                pw.set_outlet_state(outlet, 'off')
-                time.sleep(int(arguments['--delay']))
-                pw.set_outlet_state(outlet, 'on')
-
-        elif arguments['tgl']:
-            pw.toggle_outlet(outlet)
-
-        elif arguments['get']:
-            pw.print_outlet_state(outlet)
-
-        elif arguments['set']:
-            pw.set_outlet_state(outlet, arguments['STATE'])
-
-        elif arguments['rename']:
-            pw.set_name(outlet, arguments['NAME'])
-
-        elif arguments['reset']:
-            pw.reset_outlet_name(outlet)
-
-    except KeyboardInterrupt:
-        pw.logger.warning('Interrupted by user.')
+    return f'{version.strip()}'
 
 
 if __name__ == '__main__':
-    main()
+    options = parse_cmdline()
+
+    pw = PowerSwitch(options.conffile, options.log.upper())
+
+    if options.outlet:
+        options.outlet = pw.resolve_outlet(options.outlet)
+
+    if options.action == 'set':
+        pw.set_outlet_state(options.outlet, options.state)
+    elif options.action == 'get':
+        pw.print_outlet_state(options.outlet)
+    elif options.action == 'tgl':
+        pw.toggle_outlet(options.outlet)
+    elif options.action == 'ccl':
+        pw.set_outlet_state(options.outlet, 'ccl')
+    elif options.action == 'rename':
+        pw.set_name(options.outlet, options.name)
+    elif options.action == 'reset':
+        pw.reset_outlet_name(options.outlet)
+    elif options.action == 'version':
+        rev = pw.get_switch_revision()
+        print(f'{filename} version {version()}\n')
+        for k, v in rev.items():
+            print('{k:10}\t{v}')
+
+
