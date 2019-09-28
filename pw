@@ -6,6 +6,7 @@ import sys
 import time
 import argparse
 import logging
+import datetime
 
 import requests
 from bs4 import BeautifulSoup
@@ -29,6 +30,7 @@ class PowerSwitch:
         self.timeout = (0.25, 1)
         self.logger.debug(f'power switch timouts are {self.timeout}')
 
+        self.cache = dict()
         self.delay = []
 
         self._request_count = 0
@@ -36,6 +38,14 @@ class PowerSwitch:
 
         self.name = self.get_switch_name()
         self.outlets = self.get_outlets_state()
+
+    def get(self, url, delta=datetime.timedelta(seconds=5)):
+        if not self.cache.get(url, None) or \
+                datetime.datetime.now() - self.cache[url][1] > delta:
+            self.cache[url] = (requests.get(url, timeout=self.timeout,
+                                            auth=(self.user, self.password)),
+                               datetime.datetime.now())
+        return self.cache[url][0]
 
     def _get_pw(self, page, payload):
         '''Send a request to the PowerSwitch'''
@@ -62,8 +72,7 @@ class PowerSwitch:
     def get_switch_revision(self):
         '''Returns a dictionary of 3 revision numbers'''
 
-        r = self._get_pw(self.url + '/support.htm', None)
-
+        r = self.get(f'{self.url}/support.htm')
         soup = BeautifulSoup(r.text, 'html.parser')
 
         ret = {}
@@ -84,7 +93,7 @@ class PowerSwitch:
     def get_switch_name(self):
         '''Returns the PowerSwitch name'''
 
-        r = self._get_pw(self.url + '/index.htm', None)
+        r = self.get(f'{self.url}/index.htm')
         soup = BeautifulSoup(r.text, 'html.parser')
 
         return soup.findAll('th', bgcolor='#DDDDFF')[0].string.strip()
@@ -92,7 +101,7 @@ class PowerSwitch:
     def get_outlets_state(self):
         '''Returns a list of dictionaries containing each outlet's state'''
 
-        r = self._get_pw(self.url + '/index.htm', None)
+        r = self.get(f'{self.url}/index.htm')
         soup = BeautifulSoup(r.text, 'html.parser')
 
         ret = []
@@ -181,7 +190,7 @@ class PowerSwitch:
         check "delay" section on your switch's
         admin page for more information.'''
 
-        r = self._get_pw(self.url + '/admin.htm', None)
+        r = self.get(f'{self.url}/admin.htm')
         soup = BeautifulSoup(r.text, 'html.parser')
 
         for i in range(9, 13):
