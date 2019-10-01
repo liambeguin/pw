@@ -13,6 +13,45 @@ from bs4 import BeautifulSoup
 
 from dli import Configuration
 
+class Outlet:
+    def __init__(self, switch, name, index, state):
+        self._switch = switch
+        self._name = name
+        self._index = index
+        self._state = state
+
+    def __repr__(self):
+        return f'{self._name}[{self._state}]'
+    def __str__(self):
+        return f'  {self._name:.<25} {self._index} - {self._state}'
+
+    @property
+    def switch(self):
+        return self._switch
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        self._switch.set_name(self._index, value)
+        self._name = value
+
+    @property
+    def index(self):
+        return self._index
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, value):
+        self._switch.set_outlet_state(self._index, value)
+        self._state = value
+
+
 class PowerSwitch:
     def __init__(self, url, user='admin', password='1234', loglevel='INFO'):
         '''Initialize the PowerSwitch instance by setting it's configuration
@@ -38,6 +77,18 @@ class PowerSwitch:
 
         self.name = self.get_switch_name()
         self.outlets = self.get_outlets_state()
+
+    def __getitem__(self, index):
+        if index == 0:
+            pass
+        return self.outlets[index - 1]
+
+    def __str__(self):
+        r = f'{self.name}\n'
+
+        for i in self.outlets:
+            r += f'{i}\n'
+        return r
 
     def get(self, url, delta=datetime.timedelta(seconds=5)):
         if not self.cache.get(url, None) or \
@@ -93,8 +144,8 @@ class PowerSwitch:
 
     def resolve_outlet(self, identifier):
         for o in self.outlets:
-            if o['name'] == identifier or o['index'] == identifier:
-                return o['index']
+            if o.name == identifier or o.index == int(identifier):
+                return o.index
 
     def get_switch_name(self):
         '''Returns the PowerSwitch name'''
@@ -112,14 +163,11 @@ class PowerSwitch:
 
         ret = []
         for table_line in soup.findAll('tr', bgcolor='#F4F4F4'):
-            outlet = {}
-            index = int(table_line.findAll('td')[0].string)
-            # Add other outlet specifics here
-            outlet['index'] = str(index)
-            outlet['name'] = str(table_line.findAll('td')[1].string)
-            outlet['state'] = str(table_line.findAll('font')[0].string)
-            ret.append(outlet)
-
+            ret.append(Outlet(switch=self,
+                    index=int(table_line.findAll('td')[0].string),
+                    name=str(table_line.findAll('td')[1].string),
+                    state=str(table_line.findAll('font')[0].string.upper())
+                    ))
         return ret
 
     def _check_outlet(self, outlet):
@@ -130,41 +178,21 @@ class PowerSwitch:
     def print_outlet_state(self, outlet=None):
         '''Prints outlet states'''
 
-        self.get_outlets_state()
-        print(self.name)
         if outlet is None:
-            for outlet in self.outlets:
-                name = outlet['name']
-                idx = outlet['index']
-                state = outlet['state']
-                print(f'  {name:.<25} {idx} - {state}')
+            print(self)
         else:
-            self._check_outlet(outlet)
-            outlet = self.outlets[int(outlet) - 1]
-            name = outlet['name']
-            idx = outlet['index']
-            state = outlet['state']
-            print(f'  {name:.<25} {idx} - {state}')
+            print(self[outlet])
 
     def set_outlet_state(self, outlet, state):
         '''Set a specific outlet to a given state (ON, OFF, CCL)'''
 
         self._check_outlet(outlet)
-        if state in 'on off ccl':
+        if state in 'on off ccl ON OFF CCL':
             payload = {outlet: state.upper()}
         else:
             raise Exception('%s is not a valid state.' % state)
 
         self._get_pw(self.url + '/outlet', payload)
-
-    def toggle_outlet(self, outlet):
-        '''Toggle a specific outlet's state'''
-
-        self._check_outlet(outlet)
-        if self.outlets[int(outlet)-1]['state'] == 'OFF':
-            self.set_outlet_state(outlet, 'on')
-        else:
-            self.set_outlet_state(outlet, 'off')
 
     def set_name(self, outlet, name):
         '''Sets the controller or a given outlet's name'''
@@ -174,22 +202,13 @@ class PowerSwitch:
         else:
             self._check_outlet(outlet)
             for out in self.outlets:
-                if name == out['name']:
+                if name == out.name:
                     raise Exception('This name is already used by '
                                                'outlet ' + out['index'])
 
-            payload = {'outname'+str(outlet): name}
+            payload = {f'outname{outlet}': name}
 
         self._get_pw(self.url + '/unitnames.cgi?data', payload)
-
-    def reset_outlet_name(self, outlet=None):
-        '''Sets a given outlet's name to 'Outlet i' where i is it's index'''
-
-        if outlet is None:
-            for i in self.outlets:
-                self.set_name(i['index'], 'Outlet '+str(i['index']))
-        else:
-                self.set_name(outlet, 'Outlet '+str(outlet))
 
     def get_delay_settings(self):
         '''Returns a dictionary of delay settings.
@@ -275,17 +294,17 @@ if __name__ == '__main__':
         options.outlet = pw.resolve_outlet(options.outlet)
 
     if options.action == 'set':
-        pw.set_outlet_state(options.outlet, options.state)
+        pw[options.outlet].state = options.state
     elif options.action == 'get':
         pw.print_outlet_state(options.outlet)
     elif options.action == 'tgl':
-        pw.toggle_outlet(options.outlet)
+        pw[options.outlet].toggle()
     elif options.action == 'ccl':
-        pw.set_outlet_state(options.outlet, 'ccl')
+        pw[options.outlet].state = 'CCL'
     elif options.action == 'rename':
-        pw.set_name(options.outlet, options.name)
+        pw[options.outlet].name = options.name
     elif options.action == 'reset':
-        pw.reset_outlet_name(options.outlet)
+        pw[options.outlet].name = f'outlet{options.outlet}'
     elif options.action == 'version':
         rev = pw.get_switch_revision()
         print(f'{filename} version {version()}\n')
