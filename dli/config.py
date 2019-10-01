@@ -27,9 +27,9 @@ class Configuration:
 
             with open(self.file, 'w') as f:
                 f.write('# more information at: github.com/liambeguin/pw\n')
-                f.write('USER=\"' + user + '\"\n')
-                f.write('PASSWORD=\"' + passwd + '\"\n')
-                f.write('POWER_SWITCH_IP=\"' + ip + '\"\n')
+                f.write(f'USER=\'{user}\'\n')
+                f.write(f'PASSWORD=\'{passwd}\'\n')
+                f.write(f'POWER_SWITCH_IP=\'{ip}\'\n')
 
             os.chmod(self.file, 600)
 
@@ -49,7 +49,7 @@ class Configuration:
                 if '=' in line:
                     option, value = line.split('=', 1)
                     option = option.strip()
-                    value = value.strip(" \"\n")
+                    value = value.strip(" \'\n")
                     options[option] = value
 
         self.url = options['POWER_SWITCH_IP']
