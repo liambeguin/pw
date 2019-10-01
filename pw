@@ -42,9 +42,15 @@ class PowerSwitch:
     def get(self, url, delta=datetime.timedelta(seconds=5)):
         if not self.cache.get(url, None) or \
                 datetime.datetime.now() - self.cache[url][1] > delta:
-            self.cache[url] = (requests.get(url, timeout=self.timeout,
-                                            auth=(self.user, self.password)),
-                               datetime.datetime.now())
+            try:
+                r = requests.get(url, timeout=self.timeout,
+                                 auth=(self.user, self.password), verify=False)
+                r.raise_for_status()
+            except requests.exceptions.HTTPError as e:
+                print(e)
+            else:
+                self.cache[url] = (r, datetime.datetime.now())
+
         return self.cache[url][0]
 
     def _get_pw(self, page, payload):
