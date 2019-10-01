@@ -90,11 +90,11 @@ class PowerSwitch:
             r += f'{i}\n'
         return r
 
-    def get(self, url, delta=datetime.timedelta(seconds=5)):
+    def get(self, url, params=None, delta=datetime.timedelta(seconds=5)):
         if not self.cache.get(url, None) or \
                 datetime.datetime.now() - self.cache[url][1] > delta:
             try:
-                r = requests.get(url, timeout=self.timeout,
+                r = requests.get(url, timeout=self.timeout, params=params,
                                  auth=(self.user, self.password), verify=False)
                 r.raise_for_status()
             except requests.exceptions.HTTPError as e:
@@ -103,28 +103,6 @@ class PowerSwitch:
                 self.cache[url] = (r, datetime.datetime.now())
 
         return self.cache[url][0]
-
-    def _get_pw(self, page, payload):
-        '''Send a request to the PowerSwitch'''
-
-        self.logger.debug('try : {self._request_count + 1}')
-
-        try:
-            ret = requests.get(page, timeout=self.timeout, params=payload,
-                               auth=(self.user, self.password))
-        except (requests.exceptions.ReadTimeout,
-                requests.exceptions.ConnectTimeout,
-                requests.exceptions.ConnectionError):
-            if (self._request_count <= self._max_request_count):
-                self._request_count += 1
-                ret = self._get_pw(page, payload)
-            else:
-                self._request_count = 0
-                raise Exception(' ERROR: Connection failed')
-
-        self._request_count = 0
-        return ret
-
 
     def get_switch_revision(self):
         '''Returns a dictionary of 3 revision numbers'''
@@ -192,7 +170,7 @@ class PowerSwitch:
         else:
             raise Exception('%s is not a valid state.' % state)
 
-        self._get_pw(self.url + '/outlet', payload)
+        self.get(self.url + '/outlet', params=payload)
 
     def set_name(self, outlet, name):
         '''Sets the controller or a given outlet's name'''
@@ -208,7 +186,7 @@ class PowerSwitch:
 
             payload = {f'outname{outlet}': name}
 
-        self._get_pw(self.url + '/unitnames.cgi?data', payload)
+        self.get(self.url + '/unitnames.cgi?data', params=payload)
 
     def get_delay_settings(self):
         '''Returns a dictionary of delay settings.
@@ -310,5 +288,3 @@ if __name__ == '__main__':
         print(f'{filename} version {version()}\n')
         for k, v in rev.items():
             print('{k:10}\t{v}')
-
-
